@@ -12,7 +12,8 @@ import {
   limit,
   Timestamp,
   onSnapshot,
-  runTransaction
+  runTransaction,
+  deleteDoc
 } from 'firebase/firestore';
 import { db } from '../firebase/config';
 import { Doctor, Patient, Appointment, Prescription, Bill } from '../types';
@@ -959,6 +960,53 @@ export class FirebaseService {
       document.body.removeChild(link);
     } catch (error) {
       console.error('Error downloading PDF:', error);
+    }
+  }
+
+  // Messaging/Notifications
+  static async sendMessage(conversationId: string, from: string, to: string, content: string, type: string = 'text') {
+    const messagesRef = collection(db, 'notifications');
+    await addDoc(messagesRef, {
+      conversationId,
+      from,
+      to,
+      content,
+      type,
+      timestamp: new Date(),
+      seenBy: [from],
+    });
+  }
+
+  static subscribeToMessages(conversationId: string, callback: (messages: any[]) => void) {
+    const messagesRef = collection(db, 'notifications');
+    const q = query(messagesRef, where('conversationId', '==', conversationId), orderBy('timestamp'));
+    return onSnapshot(q, (snapshot) => {
+      const messages = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      callback(messages);
+    });
+  }
+
+  static async markMessageSeen(messageId: string, userId: string) {
+    const msgRef = doc(db, 'notifications', messageId);
+    const msgSnap = await getDoc(msgRef);
+    if (msgSnap.exists()) {
+      const data = msgSnap.data();
+      if (!data.seenBy.includes(userId)) {
+        await updateDoc(msgRef, { seenBy: [...data.seenBy, userId] });
+      }
+    }
+  }
+
+  static async archiveMessageLocally(message: any, userId: string) {
+    // If both doctor and patient have seen, move to localStorage and delete from Firestore
+    if (Array.isArray(message.seenBy) && message.seenBy.length >= 2) {
+      // Archive in localStorage by conversationId
+      const key = `chat_${message.conversationId}`;
+      const local = JSON.parse(localStorage.getItem(key) || '[]');
+      local.push(message);
+      localStorage.setItem(key, JSON.stringify(local));
+      // Delete from Firestore
+      await deleteDoc(doc(db, 'notifications', message.id));
     }
   }
 }

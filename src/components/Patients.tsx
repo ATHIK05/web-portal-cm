@@ -19,6 +19,7 @@ import { FirebaseService } from '../services/firebaseService';
 import { useTheme } from '../contexts/ThemeContext';
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
+import { useNavigate } from 'react-router-dom';
 
 const Patients: React.FC = () => {
   const { user } = useAuth();
@@ -42,6 +43,8 @@ const Patients: React.FC = () => {
   const [availableTimes, setAvailableTimes] = useState<string[]>([]);
   const [scheduling, setScheduling] = useState(false);
   const [scheduleError, setScheduleError] = useState('');
+
+  const navigate = useNavigate();
 
   // Helper: Generate 15-min slots for a period
   const generateSlots = (start: number, end: number) => {
@@ -73,10 +76,10 @@ const Patients: React.FC = () => {
       const appointments = await FirebaseService.getDoctorAppointments(user.uid, scheduleDate);
       // Only consider appointments with the same day string
       const booked = appointments
-        .filter(a => a.appointmentDay === dayStr)
+        .filter(a => a.date && getDayString(a.date) === dayStr)
         .map(a => a.timeSlot);
-      const allSlots = slotMap[scheduleSlot] || [];
-      setAvailableTimes(allSlots.filter(slot => !booked.includes(slot)));
+      const allSlots = slotMap[scheduleSlot as keyof typeof slotMap] || [];
+      setAvailableTimes(allSlots.filter((slot: string) => !booked.includes(slot)));
       setScheduleTime('');
     };
     fetchBooked();
@@ -558,6 +561,7 @@ const Patients: React.FC = () => {
                               
                               <button
                                 title="Send Message"
+                                onClick={() => navigate(`/chat/${patient.id}`)}
                                 className="text-purple-600 hover:text-purple-900 p-1 rounded"
                               >
                                 <MessageSquare size={16} />

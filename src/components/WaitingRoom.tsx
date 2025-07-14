@@ -11,6 +11,8 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { Link } from 'react-router-dom';
+import { collection, query, onSnapshot, orderBy, where } from 'firebase/firestore';
+import { db } from '../firebase/config';
 
 const WaitingRoom: React.FC = () => {
   const { user } = useAuth();
@@ -19,61 +21,28 @@ const WaitingRoom: React.FC = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (user) {
-      loadWaitingPatients();
-      // Set up real-time listener for waiting patients
-      const interval = setInterval(loadWaitingPatients, 30000); // Refresh every 30 seconds
-      return () => clearInterval(interval);
-    }
-  }, [user]);
-
-  const loadWaitingPatients = async () => {
-    setLoading(true);
-    try {
-      // Mock data - replace with actual Firebase call
-      const mockPatients = [
-        {
-          id: 'patient1',
-          name: 'Mohamed Athik',
-          phone: '9080262334',
-          email: 'mohamedathikr.22msc@kongu.edu',
-          reason: 'Follow-up consultation',
-          waitingSince: '10:30 AM',
-          waitingDuration: '5 minutes',
-          priority: 'normal',
-          isOnline: true
-        },
-        {
-          id: 'patient2',
-          name: 'Sarah Johnson',
-          phone: '9876543210',
-          email: 'sarah.j@email.com',
-          reason: 'General checkup',
-          waitingSince: '10:45 AM',
-          waitingDuration: '2 minutes',
-          priority: 'normal',
-          isOnline: true
-        },
-        {
-          id: 'patient3',
-          name: 'Raj Kumar',
-          phone: '8765432109',
-          email: 'raj.kumar@email.com',
-          reason: 'Urgent consultation',
-          waitingSince: '10:25 AM',
-          waitingDuration: '8 minutes',
-          priority: 'urgent',
-          isOnline: false
-        }
-      ];
-      
-      setWaitingPatients(mockPatients);
-    } catch (error) {
-      console.error('Error loading waiting patients:', error);
-    } finally {
+    if (!user) return;
+    // Real-time Firestore listener for waiting patients
+    // Uncomment the where line if you want to filter by doctorId
+    const q = query(
+      collection(db, 'waitingRoom'),
+      // where('doctorId', '==', user.uid),
+      orderBy('waitingSince', 'asc')
+    );
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const patients = snapshot.docs.map(doc => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          ...data,
+          waitingSince: data.waitingSince?.toDate ? data.waitingSince.toDate() : data.waitingSince
+        };
+      });
+      setWaitingPatients(patients);
       setLoading(false);
-    }
-  };
+    });
+    return () => unsubscribe();
+  }, [user]);
 
   const filteredPatients = waitingPatients.filter(patient =>
     patient.name.toLowerCase().includes(searchTerm.toLowerCase()) ||

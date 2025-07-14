@@ -12,6 +12,10 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useParams, Link } from 'react-router-dom';
+import { FirebaseService } from '../services/firebaseService';
+import Picker from '@emoji-mart/react';
+import data from '@emoji-mart/data';
+import imageCompression from 'browser-image-compression';
 
 const Chat: React.FC = () => {
   const { user, doctor } = useAuth();
@@ -20,103 +24,116 @@ const Chat: React.FC = () => {
   const [newMessage, setNewMessage] = useState('');
   const [patient, setPatient] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [conversationId, setConversationId] = useState<string | null>(null);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    if (patientId) {
+    if (patientId && user) {
+      // Deterministic conversationId: doctorId_patientId (sorted)
+      const ids = [user.uid, patientId].sort();
+      const convId = `${ids[0]}_${ids[1]}`;
+      setConversationId(convId);
       loadPatientData();
-      loadMessages();
+      loadMessages(convId);
     }
-  }, [patientId]);
+  }, [patientId, user]);
 
   const loadPatientData = async () => {
+    if (!patientId) return;
     try {
-      // Mock patient data - replace with actual Firebase call
-      setPatient({
-        id: patientId,
-        name: 'Mohamed Athik',
-        phone: '9080262334',
-        email: 'mohamedathikr.22msc@kongu.edu',
-        isOnline: true,
-        lastSeen: new Date()
-      });
+      const data = await FirebaseService.getPatientById(patientId);
+      setPatient(data);
     } catch (error) {
       console.error('Error loading patient data:', error);
     }
   };
 
-  const loadMessages = async () => {
+  const loadMessages = (convId: string) => {
     setLoading(true);
-    try {
-      // Mock messages - replace with actual Firebase call
-      const mockMessages = [
-        {
-          id: '1',
-          senderId: patientId,
-          senderName: 'Mohamed Athik',
-          message: 'Hello Doctor, I wanted to discuss my recent test results',
-          timestamp: new Date(Date.now() - 300000), // 5 minutes ago
-          type: 'text'
-        },
-        {
-          id: '2',
-          senderId: user?.uid,
-          senderName: doctor?.name,
-          message: 'Hello! I\'ve reviewed your test results. How are you feeling today?',
-          timestamp: new Date(Date.now() - 240000), // 4 minutes ago
-          type: 'text'
-        },
-        {
-          id: '3',
-          senderId: patientId,
-          senderName: 'Mohamed Athik',
-          message: 'I\'m feeling much better, but I have some questions about the medication',
-          timestamp: new Date(Date.now() - 180000), // 3 minutes ago
-          type: 'text'
-        },
-        {
-          id: '4',
-          senderId: user?.uid,
-          senderName: doctor?.name,
-          message: 'Of course! I\'m happy to answer any questions. Would you like to schedule a video call to discuss this in detail?',
-          timestamp: new Date(Date.now() - 120000), // 2 minutes ago
-          type: 'text'
-        },
-        {
-          id: '5',
-          senderId: patientId,
-          senderName: 'Mohamed Athik',
-          message: 'Yes, that would be great. When would be a good time?',
-          timestamp: new Date(Date.now() - 60000), // 1 minute ago
-          type: 'text'
-        }
-      ];
-      
-      setMessages(mockMessages);
-    } catch (error) {
-      console.error('Error loading messages:', error);
-    } finally {
+    if (!convId) return;
+    // Subscribe to real-time messages
+    const unsubscribe = FirebaseService.subscribeToMessages(convId, (msgs) => {
+      setMessages(msgs.map(m => ({
+        ...m,
+        timestamp: m.timestamp?.toDate ? m.timestamp.toDate() : new Date(m.timestamp)
+      })));
       setLoading(false);
+    });
+    return unsubscribe;
+  };
+
+  // Handle emoji select
+  const addEmoji = (emoji: any) => {
+    setNewMessage(prev => prev + emoji.native);
+    setShowEmojiPicker(false);
+  };
+
+  // Handle file attachment
+  const handleAttachClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !conversationId || !patientId || !user) return;
+    let base64 = '';
+    let type = '';
+    try {
+      if (file.type.startsWith('image/')) {
+        // Compress image
+        const compressed = await imageCompression(file, { maxSizeMB: 0.5, maxWidthOrHeight: 1024 });
+        base64 = await imageCompression.getDataUrlFromFile(compressed);
+        type = 'image';
+      } else if (file.type === 'application/pdf') {
+        // Read PDF as base64
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        await new Promise(resolve => { reader.onload = resolve; });
+        base64 = reader.result as string;
+        type = 'pdf';
+      } else {
+        alert('Only images and PDF files are allowed.');
+        return;
+      }
+      // Store in Firestore
+      await FirebaseService.sendMessage(
+        conversationId,
+        user.uid,
+        patientId,
+        base64,
+        type
+      );
+      // Store in localStorage for continuity
+      const key = `chat_${conversationId}`;
+      const local = JSON.parse(localStorage.getItem(key) || '[]');
+      local.push({
+        from: user.uid,
+        to: patientId,
+        content: base64,
+        type,
+        timestamp: new Date().toISOString(),
+      });
+      localStorage.setItem(key, JSON.stringify(local));
+    } catch (err) {
+      alert('Failed to attach file.');
     }
+    e.target.value = '';
   };
 
   const sendMessage = async () => {
     if (!newMessage.trim() || !user) return;
 
-    const message = {
-      id: Date.now().toString(),
-      senderId: user.uid,
-      senderName: doctor?.name || 'Doctor',
-      message: newMessage.trim(),
-      timestamp: new Date(),
-      type: 'text'
-    };
-
-    setMessages(prev => [...prev, message]);
-    setNewMessage('');
-
-    // Here you would save the message to Firebase
+    if (!conversationId || !patientId) return;
     try {
-      // await FirebaseService.sendMessage(patientId, message);
+      await FirebaseService.sendMessage(
+        conversationId,
+        user.uid,
+        patientId,
+        newMessage.trim(),
+        'text'
+      );
+      setNewMessage('');
     } catch (error) {
       console.error('Error sending message:', error);
     }
@@ -136,7 +153,7 @@ const Chat: React.FC = () => {
     });
   };
 
-  const isMyMessage = (senderId: string) => senderId === user?.uid;
+  const isMyMessage = (from: string) => from === user?.uid;
 
   return (
     <div className="h-screen flex flex-col bg-gray-50">
@@ -163,9 +180,9 @@ const Chat: React.FC = () => {
               
               <div>
                 <h2 className="font-semibold text-gray-900">{patient?.name || 'Patient'}</h2>
-                <p className="text-sm text-gray-600">
-                  {patient?.isOnline ? 'Online' : `Last seen ${formatTime(patient?.lastSeen || new Date())}`}
-                </p>
+                {patient?.isOnline && (
+                  <p className="text-sm text-gray-600">Online</p>
+                )}
               </div>
             </div>
           </div>
@@ -199,20 +216,26 @@ const Chat: React.FC = () => {
           messages.map((message) => (
             <div
               key={message.id}
-              className={`flex ${isMyMessage(message.senderId) ? 'justify-end' : 'justify-start'}`}
+              className={`flex ${isMyMessage(message.from) ? 'justify-end' : 'justify-start'}`}
             >
               <div
                 className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${
-                  isMyMessage(message.senderId)
+                  isMyMessage(message.from)
                     ? 'bg-blue-600 text-white'
                     : 'bg-white text-gray-900 border border-gray-200'
                 }`}
               >
-                <p className="text-sm">{message.message}</p>
+                {message.type === 'image' ? (
+                  <img src={message.content} alt="attachment" className="max-w-xs max-h-60 rounded mb-1" />
+                ) : message.type === 'pdf' ? (
+                  <a href={message.content} target="_blank" rel="noopener noreferrer" className="text-blue-600 underline block mb-1">View PDF</a>
+                ) : (
+                  <p className="text-sm">{message.content}</p>
+                )}
                 <div className="flex items-center justify-between mt-1">
                   <span
                     className={`text-xs ${
-                      isMyMessage(message.senderId) ? 'text-blue-100' : 'text-gray-500'
+                      isMyMessage(message.from) ? 'text-blue-100' : 'text-gray-500'
                     }`}
                   >
                     {formatTime(message.timestamp)}
@@ -227,8 +250,19 @@ const Chat: React.FC = () => {
       {/* Message Input */}
       <div className="bg-white border-t border-gray-200 p-4">
         <div className="flex items-center space-x-3">
-          <button className="p-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg">
+          <button
+            className="p-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg"
+            onClick={handleAttachClick}
+            title="Attach file"
+          >
             <Paperclip size={20} />
+            <input
+              type="file"
+              accept="image/*,application/pdf"
+              ref={fileInputRef}
+              style={{ display: 'none' }}
+              onChange={handleFileChange}
+            />
           </button>
           
           <div className="flex-1 relative">
@@ -241,9 +275,18 @@ const Chat: React.FC = () => {
               rows={1}
               style={{ minHeight: '40px', maxHeight: '120px' }}
             />
+            {showEmojiPicker && (
+              <div className="absolute bottom-12 left-0 z-50">
+                <Picker data={data} onEmojiSelect={addEmoji} theme="light" />
+              </div>
+            )}
           </div>
           
-          <button className="p-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg">
+          <button
+            className="p-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg"
+            onClick={() => setShowEmojiPicker(v => !v)}
+            title="Insert emoji"
+          >
             <Smile size={20} />
           </button>
           
