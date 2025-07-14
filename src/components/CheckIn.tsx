@@ -54,7 +54,7 @@ const CheckIn: React.FC = () => {
 
       if (success) {
         setIsCheckedIn(true);
-        setMessage('Successfully checked in! You are now available for appointments.');
+        setMessage('Successfully checked in! You are now available for appointments. Auto-checkout will occur after 24 hours.');
         // Refresh the page to update doctor state
         window.location.reload();
       } else {

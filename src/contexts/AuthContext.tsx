@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 import { onAuthStateChanged, User } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
 import { auth, db } from '../firebase/config';
+import { FirebaseService } from '../services/firebaseService';
 import { Doctor } from '../types';
 
 interface AuthContextType {
@@ -38,7 +39,15 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         try {
           const doctorDoc = await getDoc(doc(db, 'doctors', user.uid));
           if (doctorDoc.exists()) {
-            setDoctor({ id: user.uid, ...doctorDoc.data() } as Doctor);
+            const doctorData = { id: user.uid, ...doctorDoc.data() } as Doctor;
+            
+            // Check for auto-checkout (24 hours)
+            const autoCheckedOut = await FirebaseService.checkAutoCheckout(user.uid);
+            if (autoCheckedOut) {
+              doctorData.isCheckedIn = false;
+            }
+            
+            setDoctor(doctorData);
           }
         } catch (error) {
           console.error('Error fetching doctor data:', error);

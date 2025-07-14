@@ -49,6 +49,7 @@ export class FirebaseService {
       const checkInData = {
         isCheckedIn: true,
         checkedInAt: Timestamp.now(),
+        checkInDate: Timestamp.fromDate(new Date()), // Store check-in date for auto-checkout
         availableSlots: slots,
         ...(customTime && { customTimeSlot: customTime }),
         lastUpdated: Timestamp.now()
@@ -78,6 +79,30 @@ export class FirebaseService {
     }
   }
 
+  // Auto-checkout after 24 hours
+  static async checkAutoCheckout(doctorId: string): Promise<boolean> {
+    try {
+      const doctorDoc = await getDoc(doc(db, 'doctors', doctorId));
+      if (doctorDoc.exists()) {
+        const data = doctorDoc.data();
+        if (data.isCheckedIn && data.checkInDate) {
+          const checkInTime = data.checkInDate.toDate();
+          const now = new Date();
+          const hoursDiff = (now.getTime() - checkInTime.getTime()) / (1000 * 60 * 60);
+          
+          if (hoursDiff >= 24) {
+            await this.checkOutDoctor(doctorId);
+            return true; // Auto-checked out
+          }
+        }
+      }
+      return false;
+    } catch (error) {
+      console.error('Error checking auto-checkout:', error);
+      return false;
+    }
+  }
+
   // Appointment Services
   static async getDoctorAppointments(doctorId: string, date?: Date): Promise<Appointment[]> {
     try {
@@ -95,7 +120,9 @@ export class FirebaseService {
           ...data,
           // Handle both 'date' and 'appointmentDate' fields
           date: data.appointmentDate ? data.appointmentDate.toDate() : (data.date ? data.date.toDate() : new Date()),
-          patientName: data.patientName || 'Unknown Patient'
+          patientName: data.patientName || 'Unknown Patient',
+          status: data.status || 'scheduled', // <-- Ensure status is present
+          // Add other fields as needed
         };
       }) as Appointment[];
       
@@ -245,10 +272,20 @@ export class FirebaseService {
   // Prescription Services
   static async createPrescription(appointmentId: string, medicines: any[], instructions: string): Promise<string | null> {
     try {
+      // Generate PDF first
+      const pdfBase64 = await this.generatePrescriptionPDF({
+        id: 'temp',
+        appointmentId,
+        medicines,
+        instructions,
+        createdAt: new Date()
+      } as any);
+
       const prescriptionData = {
         appointmentId,
         medicines,
         instructions,
+        pdfBase64,
         createdAt: Timestamp.now(),
         lastUpdated: Timestamp.now()
       };
@@ -285,9 +322,27 @@ export class FirebaseService {
   // Bill Services
   static async createBill(appointmentId: string, billData: Omit<Bill, 'id' | 'createdAt'>): Promise<string | null> {
     try {
+      // Fetch the appointment to get doctorId
+      const appointmentDoc = await getDoc(doc(db, 'appointments', appointmentId));
+      if (!appointmentDoc.exists()) throw new Error('Appointment not found');
+      const appointment = appointmentDoc.data();
+      const doctorId = appointment.doctorId;
+
+      // Fetch doctor profile for name
+      const doctorProfile = await this.getDoctorProfile(doctorId);
+      const doctorName = doctorProfile?.name || 'Unknown';
+
+      // Generate PDF first
+      const pdfBase64 = await this.generateBillPDF({
+        id: appointmentId,
+        ...billData,
+        createdAt: new Date()
+      } as any, doctorName);
+
       const bill = {
         ...billData,
         appointmentId,
+        pdfBase64,
         createdAt: Timestamp.now(),
         lastUpdated: Timestamp.now()
       };
@@ -596,6 +651,7 @@ export class FirebaseService {
         const data = doc.data();
         return {
           ...data,
+          status: data.status || 'scheduled',
           date: data.appointmentDate ? data.appointmentDate.toDate() : (data.date ? data.date.toDate() : new Date())
         };
       });
@@ -674,5 +730,197 @@ export class FirebaseService {
       
       callback(todayAppointments);
     });
+  }
+
+  // Video Consultation Services
+  static async getWaitingPatients(doctorId: string): Promise<any[]> {
+    try {
+      // Mock data for now - implement actual Firebase query
+      return [
+        {
+          id: 'patient1',
+          name: 'Mohamed Athik',
+          waitingSince: '10:30 AM',
+          reason: 'Follow-up consultation'
+        }
+      ];
+    } catch (error) {
+      console.error('Error fetching waiting patients:', error);
+      return [];
+    }
+  }
+
+  // PDF Generation Services
+  static async generatePrescriptionPDF(prescription: Prescription): Promise<string> {
+    try {
+      const { jsPDF } = await import('jspdf');
+      const doc = new jsPDF();
+
+      // Branding Header
+      doc.setFillColor(59, 130, 246); // Blue
+      doc.rect(0, 0, 210, 30, 'F');
+      doc.setTextColor(255, 255, 255);
+      doc.setFontSize(22);
+      doc.setFont('helvetica', 'bold');
+      doc.text('Crescent Moon Medical Center', 105, 15, { align: 'center' });
+      doc.setFontSize(12);
+      doc.text('Medical Prescription', 105, 25, { align: 'center' });
+
+      // Patient & Doctor Info
+      doc.setTextColor(0, 0, 0);
+      doc.setFontSize(11);
+      doc.setFont('helvetica', 'normal');
+      doc.text(`Prescription ID: ${prescription.id}`, 15, 40);
+      doc.text(`Date: ${prescription.createdAt.toLocaleDateString()}`, 15, 48);
+      doc.text(`Time: ${prescription.createdAt.toLocaleTimeString()}`, 120, 48);
+      doc.text('Doctor: Dr. Mohamed Athik', 15, 56);
+      doc.text('Specialty: Cardiology', 120, 56);
+
+      // Medicines Table
+      doc.setFontSize(13);
+      doc.setFont('helvetica', 'bold');
+      doc.text('Prescribed Medicines', 15, 68);
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'bold');
+      doc.setFillColor(240, 240, 240);
+      doc.rect(15, 72, 180, 8, 'F');
+      doc.text('No.', 18, 78);
+      doc.text('Medicine', 28, 78);
+      doc.text('Dosage', 80, 78);
+      doc.text('Frequency', 120, 78);
+      doc.text('Duration', 160, 78);
+      let y = 86;
+      doc.setFont('helvetica', 'normal');
+      prescription.medicines.forEach((med, i) => {
+        doc.text(`${i + 1}`, 18, y);
+        doc.text(med.name, 28, y);
+        doc.text(med.dosage, 80, y);
+        doc.text(med.frequency, 120, y);
+        doc.text(med.duration, 160, y);
+        y += 10;
+      });
+
+      // Instructions Section
+      if (prescription.instructions) {
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(12);
+        doc.text('Instructions:', 15, y + 8);
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(10);
+        const splitInstructions = doc.splitTextToSize(prescription.instructions, 170);
+        doc.text(splitInstructions, 15, y + 16);
+        y += 16 + splitInstructions.length * 6;
+      }
+
+      // Footer
+      doc.setFontSize(9);
+      doc.setTextColor(120, 120, 120);
+      doc.text('This is a computer-generated prescription. For queries, contact Crescent Moon Medical Center.', 15, 285);
+      return doc.output('datauristring').split(',')[1];
+    } catch (error) {
+      console.error('Error generating prescription PDF:', error);
+      throw error;
+    }
+  }
+
+  static async generateBillPDF(bill: Bill, doctorName: string): Promise<string> {
+  // Helper: Convert number to words (simple version)
+  function numberToWords(num: number): string {
+    const a = [
+      '', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten',
+      'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen'
+    ];
+    const b = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
+    if ((num = num || 0) < 20) return a[num];
+    if (num < 100) return b[Math.floor(num / 10)] + (num % 10 ? ' ' + a[num % 10] : '');
+    if (num < 1000) return a[Math.floor(num / 100)] + ' Hundred' + (num % 100 ? ' and ' + numberToWords(num % 100) : '');
+    if (num < 10000) return a[Math.floor(num / 1000)] + ' Thousand' + (num % 1000 ? ' ' + numberToWords(num % 1000) : '');
+    return num.toString();
+  }
+
+  try {
+    const { jsPDF } = await import('jspdf');
+    const doc = new jsPDF();
+
+    // Branding Header
+    doc.setFillColor(34, 197, 94); // Green
+    doc.rect(0, 0, 210, 30, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(22);
+    doc.setFont('helvetica', 'bold');
+    doc.text('KBN Nursing Center', 105, 15, { align: 'center' });
+    doc.setFontSize(13);
+    doc.text('Medical Bill', 105, 25, { align: 'center' });
+
+    // Bill Info
+    doc.setTextColor(0, 0, 0);
+    doc.setFontSize(11);
+    doc.setFont('helvetica', 'normal');
+    doc.text(`Bill ID: ${bill.id.substring(0, 6)}`, 15, 40);
+    doc.text(`Date: ${bill.createdAt.toLocaleDateString()}`, 15, 48);
+    doc.text(`Time: ${bill.createdAt.toLocaleTimeString()}`, 120, 48);
+    doc.text(`Doctor: Dr. ${doctorName}`, 15, 56);
+    doc.text(`Specialty: Cardiology`, 120, 56);
+
+    // Bill Details Table
+    doc.setFontSize(13);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Bill Details', 15, 68);
+
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'bold');
+    doc.setFillColor(240, 240, 240);
+    doc.rect(15, 72, 180, 8, 'F');
+    doc.text('No.', 18, 78);
+    doc.text('Description', 28, 78);
+    doc.text('Amount (₹)', 185, 78, { align: 'right' });
+
+    let y = 86;
+    doc.setFont('helvetica', 'normal');
+    bill.breakdown.forEach((item, i) => {
+      doc.text(`${i + 1}`, 18, y);
+      doc.text(item.description, 28, y);
+      doc.text(`${item.amount.toLocaleString()}`, 185, y, { align: 'right' }); // <-- move to 185
+      y += 10;
+    });
+
+    // Total Section (Green Box)
+    doc.setFillColor(34, 197, 94);
+    doc.rect(15, y + 8, 180, 14, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(14);
+    doc.setFont('helvetica', 'bold');
+    doc.text(`Total Amount: ₹${bill.total.toLocaleString()}`, 105, y + 18, { align: 'center' });
+
+    // Amount in Words
+    doc.setTextColor(60, 60, 60);
+    doc.setFontSize(11);
+    doc.setFont('helvetica', 'normal');
+    doc.text(`Amount in Words: ${numberToWords(bill.total)} Rupees Only`, 105, y + 34, { align: 'center' });
+
+    // Footer
+    doc.setFontSize(9);
+    doc.setTextColor(120, 120, 120);
+    doc.text('Thank you for choosing Crescent Moon Medical Center. Payment due within 30 days.', 15, 285);
+
+    return doc.output('datauristring').split(',')[1];
+  } catch (error) {
+    console.error('Error generating bill PDF:', error);
+    throw error;
+  }
+  }
+
+  // Download PDF from base64
+  static downloadPDFFromBase64(base64: string, filename: string): void {
+    try {
+      const link = document.createElement('a');
+      link.href = `data:application/pdf;base64,${base64}`;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch (error) {
+      console.error('Error downloading PDF:', error);
+    }
   }
 }

@@ -17,9 +17,11 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { FirebaseService } from '../services/firebaseService';
+import { useTheme } from '../contexts/ThemeContext';
 
 const Appointments: React.FC = () => {
   const { user } = useAuth();
+  const { theme } = useTheme();
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
   const [filterDate, setFilterDate] = useState('');
@@ -309,7 +311,9 @@ const Appointments: React.FC = () => {
                 <select
                   value={filterStatus}
                   onChange={(e) => setFilterStatus(e.target.value)}
-                  className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className={`px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                    theme === 'dark' ? 'bg-gray-800 text-white' : ''
+                  }`}
                 >
                   <option value="all">All Status</option>
                   <option value="scheduled">Scheduled</option>
@@ -369,37 +373,40 @@ const Appointments: React.FC = () => {
                   const patientName = patient ? `${patient.firstName || ''} ${patient.lastName || ''}`.trim() : 'Unknown Patient';
                   
                   return (
-                    <tr key={appointment.id} className="hover:bg-gray-50">
+                    <tr key={appointment.id} className={`
+                      ${theme === 'dark' ? 'bg-gray-900 hover:bg-gray-800' : 'hover:bg-gray-50'}
+                    `}>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center">
-                          <div className="w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center">
-                            <User size={16} className="text-gray-500" />
+                          <div className={`w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center ${theme === 'dark' ? 'bg-gray-700' : ''}`}> 
+                            <User size={16} className={theme === 'dark' ? 'text-gray-300' : 'text-gray-500'} />
                           </div>
                           <div className="ml-4">
-                            <div className="text-sm font-medium text-gray-900">
+                            <div
+                              className={`text-sm font-medium transition-colors duration-150 cursor-pointer
+                                ${theme === 'dark' ? 'text-white group-hover:text-gray-200' : 'text-gray-900 hover:text-white'}`}
+                            >
                               {patientName}
                             </div>
-                            <div className="text-sm text-gray-500">
+                            <div className={`text-sm ${theme === 'dark' ? 'text-gray-300' : 'text-gray-500'}`}> 
                               {patient?.phoneNumber || 'No phone'}
                             </div>
                           </div>
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900">
+                        <div className={`text-sm ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
                           {new Date(appointment.date).toLocaleDateString()}
                         </div>
-                        <div className="text-sm text-gray-500">
+                        <div className={`text-sm ${theme === 'dark' ? 'text-gray-300' : 'text-gray-500'}`}>
                           {appointment.timeSlot || new Date(appointment.date).toLocaleTimeString('en-US', { 
                             hour: '2-digit', 
                             minute: '2-digit' 
                           })}
                         </div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900">
-                          {appointment.reason || appointment.type || 'Consultation'}
-                        </div>
+                      <td className={`px-6 py-4 whitespace-nowrap text-sm ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
+                        {appointment.reason || appointment.type || 'Consultation'}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center space-x-2">

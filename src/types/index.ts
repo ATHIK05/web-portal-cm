@@ -16,6 +16,30 @@ export interface Doctor {
   weeklySchedule?: WeeklySchedule;
   createdAt?: Date;
   lastUpdated?: Date;
+  settings?: {
+    notifications: {
+      emailNotifications: boolean;
+      smsNotifications: boolean;
+      appointmentReminders: boolean;
+      newPatientAlerts: boolean;
+    };
+    consultation: {
+      videoConsultationEnabled: boolean;
+      consultationDuration: number;
+      bufferTime: number;
+      autoAcceptAppointments: boolean;
+    };
+    privacy: {
+      profileVisibility: string;
+      shareDataWithPartners: boolean;
+      allowPatientReviews: boolean;
+    };
+    appearance: {
+      theme: string;
+      language: string;
+      timezone: string;
+    };
+  };
 }
 
 export interface WeeklySchedule {

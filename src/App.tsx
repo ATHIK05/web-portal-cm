@@ -10,7 +10,12 @@ import Patients from './components/Patients';
 import Reports from './components/Reports';
 import Profile from './components/Profile';
 import Appointments from './components/Appointments';
-
+import Analytics from './components/Analytics';
+import Settings from './components/Settings';
+import VideoConsultation from './components/VideoConsultation';
+import WaitingRoom from './components/WaitingRoom';
+import Chat from './components/Chat';
+import { ThemeProvider } from './contexts/ThemeContext';
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user, loading } = useAuth();
 
@@ -48,8 +53,11 @@ const AppContent: React.FC = () => {
           <Route path="reports" element={<Reports />} />
           <Route path="profile" element={<Profile />} />
           <Route path="appointments" element={<Appointments />} />
-          <Route path="analytics" element={<Dashboard />} />
-          <Route path="settings" element={<Dashboard />} />
+          <Route path="analytics" element={<Analytics />} />
+          <Route path="settings" element={<Settings />} />
+          <Route path="video-consultation" element={<VideoConsultation />} />
+          <Route path="waiting-room" element={<WaitingRoom />} />
+          <Route path="chat/:patientId" element={<Chat />} />
         </Route>
       </Routes>
     </Router>
@@ -58,9 +66,11 @@ const AppContent: React.FC = () => {
 
 function App() {
   return (
-    <AuthProvider>
-      <AppContent />
-    </AuthProvider>
+    <ThemeProvider>
+      <AuthProvider>
+        <AppContent />
+      </AuthProvider>
+    </ThemeProvider>
   );
 }
 

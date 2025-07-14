@@ -16,9 +16,11 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { FirebaseService } from '../services/firebaseService';
+import { useTheme } from '../contexts/ThemeContext';
 
 const Patients: React.FC = () => {
   const { user } = useAuth();
+  const { theme } = useTheme();
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
   const [selectedPatient, setSelectedPatient] = useState<any>(null);
@@ -327,7 +329,7 @@ const Patients: React.FC = () => {
               <select
                 value={filterStatus}
                 onChange={(e) => setFilterStatus(e.target.value)}
-                className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className={`px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${theme === 'dark' ? 'bg-gray-800 text-white' : ''}`}
               >
                 <option value="all">All Patients</option>
                 <option value="active">Active</option>
@@ -373,17 +375,19 @@ const Patients: React.FC = () => {
                   const fullName = `${patient.firstName || ''} ${patient.lastName || ''}`.trim();
                   
                   return (
-                    <tr key={patient.id} className="hover:bg-gray-50">
+                    <tr key={patient.id} className={`
+                      ${theme === 'dark' ? 'bg-gray-900 hover:bg-gray-800' : 'hover:bg-gray-50'}
+                    `}>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center">
-                          <div className="w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center">
-                            <User size={16} className="text-gray-500" />
+                          <div className={`w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center ${theme === 'dark' ? 'bg-gray-700' : ''}`}> 
+                            <User size={16} className={theme === 'dark' ? 'text-gray-300' : 'text-gray-500'} />
                           </div>
                           <div className="ml-4">
-                            <div className="text-sm font-medium text-gray-900">
+                            <div className={`text-sm font-medium transition-colors duration-150 cursor-pointer ${theme === 'dark' ? 'text-white' : 'text-gray-900 hover:text-white'}`}> 
                               {fullName || 'Unknown Patient'}
                             </div>
-                            <div className="text-sm text-gray-500">
+                            <div className={`text-sm ${theme === 'dark' ? 'text-gray-300' : 'text-gray-500'}`}> 
                               Registered: {patient.createdAt ? new Date(patient.createdAt).toLocaleDateString() : 'Unknown'}
                             </div>
                           </div>

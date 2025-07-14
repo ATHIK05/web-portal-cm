@@ -1,3 +1,59 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+.dark .bg-white {
+  @apply bg-gray-800;
+}
+/* Dark mode styles */
+.dark .bg-gray-50 {
+  @apply bg-gray-900;
+}
+.dark {
+.dark .bg-gray-100 {
+  @apply bg-gray-800;
+}
+  @apply bg-gray-900 text-white;
+.dark .text-gray-900 {
+  @apply text-white;
+}
+}
+.dark .text-gray-700 {
+  @apply text-gray-300;
+}
+.dark .text-gray-600 {
+  @apply text-gray-400;
+}
+.dark .border-gray-200 {
+  @apply border-gray-700;
+}
+.dark .border-gray-300 {
+  @apply border-gray-600;
+}
+/* Smooth transitions */
+* {
+  transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+}
+/* Professional animations */
+.animate-fade-in {
+  animation: fadeIn 0.5s ease-in-out;
+}
+.animate-slide-up {
+  animation: slideUp 0.3s ease-out;
+}
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background-color: #f3f4f6; /* Tailwind bg-gray-100 */
+}
+.dark ::-webkit-scrollbar-track {
+  background-color: #1f2937; /* Tailwind bg-gray-800 */
+}
+::-webkit-scrollbar-thumb {
+  @apply bg-gray-300 dark:bg-gray-600 rounded-full;
+}
+::-webkit-scrollbar-thumb:hover {
+  @apply bg-gray-400 dark:bg-gray-500;
+}
