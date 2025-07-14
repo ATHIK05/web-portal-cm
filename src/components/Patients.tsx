@@ -17,6 +17,8 @@ import {
 import { useAuth } from '../contexts/AuthContext';
 import { FirebaseService } from '../services/firebaseService';
 import { useTheme } from '../contexts/ThemeContext';
+import DatePicker from 'react-datepicker';
+import 'react-datepicker/dist/react-datepicker.css';
 
 const Patients: React.FC = () => {
   const { user } = useAuth();
@@ -32,6 +34,116 @@ const Patients: React.FC = () => {
   const [patientsLoading, setPatientsLoading] = useState(true);
   const [message, setMessage] = useState('');
   const [patients, setPatients] = useState<any[]>([]);
+  const [showScheduleModal, setShowScheduleModal] = useState(false);
+  const [schedulePatient, setSchedulePatient] = useState<any>(null);
+  const [scheduleDate, setScheduleDate] = useState<Date | null>(null);
+  const [scheduleSlot, setScheduleSlot] = useState('morning');
+  const [scheduleTime, setScheduleTime] = useState('');
+  const [availableTimes, setAvailableTimes] = useState<string[]>([]);
+  const [scheduling, setScheduling] = useState(false);
+  const [scheduleError, setScheduleError] = useState('');
+
+  // Helper: Generate 15-min slots for a period
+  const generateSlots = (start: number, end: number) => {
+    const slots = [];
+    for (let h = start; h < end; h++) {
+      for (let m = 0; m < 60; m += 15) {
+        const from = new Date(0, 0, 0, h, m);
+        const to = new Date(0, 0, 0, h, m + 15);
+        const fmt = (d: Date) => d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
+        slots.push(`${fmt(from)} - ${fmt(to)}`);
+      }
+    }
+    return slots;
+  };
+  const slotMap = {
+    morning: generateSlots(8, 12),
+    evening: generateSlots(12, 18),
+    night: generateSlots(18, 22),
+  };
+
+  // Helper to get YYYY-MM-DD string from Date
+  const getDayString = (date: Date) => date.toISOString().split('T')[0];
+
+  // When date/slot changes, fetch booked slots for doctor
+  useEffect(() => {
+    if (!user || !scheduleDate || !scheduleSlot) return;
+    const fetchBooked = async () => {
+      const dayStr = getDayString(scheduleDate);
+      const appointments = await FirebaseService.getDoctorAppointments(user.uid, scheduleDate);
+      // Only consider appointments with the same day string
+      const booked = appointments
+        .filter(a => a.appointmentDay === dayStr)
+        .map(a => a.timeSlot);
+      const allSlots = slotMap[scheduleSlot] || [];
+      setAvailableTimes(allSlots.filter(slot => !booked.includes(slot)));
+      setScheduleTime('');
+    };
+    fetchBooked();
+  }, [user, scheduleDate, scheduleSlot]);
+
+  const handleOpenSchedule = (patient: any) => {
+    setSchedulePatient(patient);
+    setShowScheduleModal(true);
+    setScheduleDate(null);
+    setScheduleSlot('morning');
+    setScheduleTime('');
+    setScheduleError('');
+  };
+
+  const handleSchedule = async () => {
+    if (!user || !schedulePatient || !scheduleDate || !scheduleTime) {
+      setScheduleError('Please select all fields');
+      return;
+    }
+    setScheduling(true);
+    setScheduleError('');
+    try {
+      // Fetch doctor details from Firestore
+      const doctorDoc = await FirebaseService.getDoctorProfile(user.uid);
+      let doctorName = 'Unknown Doctor';
+      let doctorSpecialty = 'General';
+      if (doctorDoc) {
+        doctorName = doctorDoc.name || 'Unknown Doctor';
+        if (
+          Array.isArray(doctorDoc.specializations) &&
+          doctorDoc.specializations.length > 0 &&
+          typeof doctorDoc.specializations[0] === 'string' &&
+          doctorDoc.specializations[0]
+        ) {
+          doctorSpecialty = doctorDoc.specializations[0];
+        }
+      }
+      // Final fallback: never allow undefined
+      if (!doctorSpecialty || typeof doctorSpecialty !== 'string') {
+        doctorSpecialty = 'General';
+      }
+      const appointment = {
+        doctorId: user.uid,
+        doctorName,
+        doctorSpecialty,
+        patientId: schedulePatient.id,
+        patientName: `${schedulePatient.firstName} ${schedulePatient.lastName}`,
+        appointmentDate: scheduleDate,
+        timeSlot: scheduleTime,
+        type: 'checkup',
+        status: 'scheduled',
+        createdAt: new Date(),
+      };
+      const success = await FirebaseService.bookAppointmentAtomic(appointment);
+      if (success) {
+        setShowScheduleModal(false);
+        setSchedulePatient(null);
+        setMessage('Appointment scheduled successfully!');
+      } else {
+        setScheduleError('Slot already booked. Please choose another.');
+      }
+    } catch (e) {
+      setScheduleError('Error scheduling appointment.');
+    } finally {
+      setScheduling(false);
+    }
+  };
 
   // Fetch patients data
   useEffect(() => {
@@ -438,6 +550,7 @@ const Patients: React.FC = () => {
                             <>
                               <button
                                 title="Schedule Appointment"
+                                onClick={() => handleOpenSchedule(patient)}
                                 className="text-green-600 hover:text-green-900 p-1 rounded"
                               >
                                 <Calendar size={16} />
@@ -476,6 +589,72 @@ const Patients: React.FC = () => {
 
       {showLogModal && <LogPatientModal />}
       {showDetailsModal && <PatientDetailsModal />}
+      {showScheduleModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-full max-w-md m-4">
+            <h3 className="text-lg font-semibold mb-4">Schedule Appointment</h3>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Patient</label>
+                <div className="text-gray-900">{schedulePatient?.firstName} {schedulePatient?.lastName}</div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Date</label>
+                <DatePicker
+                  selected={scheduleDate}
+                  onChange={setScheduleDate}
+                  minDate={new Date()}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                  dateFormat="MMMM d, yyyy"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Slot</label>
+                <select
+                  value={scheduleSlot}
+                  onChange={e => setScheduleSlot(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                >
+                  <option value="morning">Morning (8:00–12:00)</option>
+                  <option value="evening">Evening (12:00–18:00)</option>
+                  <option value="night">Night (18:00–22:00)</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Time</label>
+                <select
+                  value={scheduleTime}
+                  onChange={e => setScheduleTime(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                >
+                  <option value="">Select a time</option>
+                  {availableTimes.map(slot => (
+                    <option key={slot} value={slot}>{slot}</option>
+                  ))}
+                </select>
+              </div>
+              {scheduleError && <div className="text-red-600 text-sm">{scheduleError}</div>}
+              <div className="flex justify-end space-x-3 mt-6">
+                <button
+                  onClick={() => setShowScheduleModal(false)}
+                  className="px-4 py-2 text-gray-600 hover:text-gray-800"
+                  disabled={scheduling}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleSchedule}
+                  disabled={scheduling}
+                  className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 flex items-center space-x-2"
+                >
+                  {scheduling && <Loader className="animate-spin" size={16} />}
+                  <span>Schedule</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

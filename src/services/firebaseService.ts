@@ -11,7 +11,8 @@ import {
   orderBy, 
   limit,
   Timestamp,
-  onSnapshot
+  onSnapshot,
+  runTransaction
 } from 'firebase/firestore';
 import { db } from '../firebase/config';
 import { Doctor, Patient, Appointment, Prescription, Bill } from '../types';
@@ -908,6 +909,43 @@ export class FirebaseService {
     console.error('Error generating bill PDF:', error);
     throw error;
   }
+  }
+
+  static async bookAppointmentAtomic(appointment: any): Promise<boolean> {
+    try {
+      // Defensive: check for undefined query fields
+      if (!appointment.doctorId || !appointment.appointmentDate || !appointment.timeSlot) {
+        console.error('Missing required appointment fields for query:', {
+          doctorId: appointment.doctorId,
+          appointmentDate: appointment.appointmentDate,
+          timeSlot: appointment.timeSlot,
+        });
+        throw new Error('Missing required appointment fields for query');
+      }
+      const appointmentsRef = collection(db, 'appointments');
+      const q = query(
+        appointmentsRef,
+        where('doctorId', '==', appointment.doctorId),
+        where('appointmentDate', '==', appointment.appointmentDate),
+        where('timeSlot', '==', appointment.timeSlot)
+      );
+      const snapshot = await getDocs(q);
+      if (!snapshot.empty) {
+        // Slot already booked
+        return false;
+      }
+      // Use transaction to ensure atomicity
+      await runTransaction(db, async (transaction) => {
+        const qSnap = await getDocs(q);
+        if (!qSnap.empty) throw new Error('Slot already booked');
+        const newDoc = doc(appointmentsRef);
+        transaction.set(newDoc, appointment);
+      });
+      return true;
+    } catch (error) {
+      console.error('Error booking appointment atomically:', error);
+      return false;
+    }
   }
 
   // Download PDF from base64

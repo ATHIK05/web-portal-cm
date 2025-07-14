@@ -15,6 +15,38 @@ import { FirebaseService } from '../services/firebaseService';
 import { Link } from 'react-router-dom';
 import { Video, Users as UsersIcon, MessageSquare } from 'lucide-react';
 
+const carouselImages = [
+  '/images/kbn1.png', // Place your first image in public/images/kbn1.jpg
+  '/images/kbn2.png', // Place your second image in public/images/kbn2.jpg
+];
+
+const ImageCarousel = () => {
+  const [current, setCurrent] = useState(0);
+  // Auto-advance every 3 seconds
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrent(prev => (prev + 1) % carouselImages.length);
+    }, 3000);
+    return () => clearInterval(interval);
+  }, []);
+  const next = () => setCurrent((current + 1) % carouselImages.length);
+  const prev = () => setCurrent((current - 1 + carouselImages.length) % carouselImages.length);
+  return (
+    <div className="relative bg-white rounded-xl shadow-sm border border-gray-200 p-6 flex flex-col items-center justify-center h-full">
+      <img src={carouselImages[current]} alt={`KBN ${current + 1}`} className="rounded-lg object-cover w-full h-64 mb-4" />
+      <div className="flex justify-center space-x-2">
+        <button onClick={prev} className="px-2 py-1 bg-gray-200 rounded hover:bg-gray-300">&#8592;</button>
+        <button onClick={next} className="px-2 py-1 bg-gray-200 rounded hover:bg-gray-300">&#8594;</button>
+      </div>
+      <div className="flex justify-center mt-2 space-x-1">
+        {carouselImages.map((_, idx) => (
+          <span key={idx} className={`inline-block w-2 h-2 rounded-full ${idx === current ? 'bg-blue-600' : 'bg-gray-300'}`}></span>
+        ))}
+      </div>
+    </div>
+  );
+};
+
 const Dashboard: React.FC = () => {
   const { doctor, user } = useAuth();
   const { stats, loading: statsLoading, refetch: refetchStats } = useDashboardStats();
@@ -108,48 +140,6 @@ const Dashboard: React.FC = () => {
           </div>
         </div>
       </div>
-    </div>
-  );
-
-  const RecentActivity = () => (
-    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-      <h3 className="text-lg font-semibold text-gray-900 mb-4">Recent Activity</h3>
-      {appointmentsLoading ? (
-        <div className="space-y-4">
-          {[1, 2, 3, 4].map(i => (
-            <div key={i} className="flex items-center space-x-3 p-3">
-              <div className="w-2 h-2 bg-gray-200 rounded-full animate-pulse"></div>
-              <div className="flex-1">
-                <div className="w-32 h-4 bg-gray-200 rounded animate-pulse mb-1"></div>
-                <div className="w-24 h-3 bg-gray-200 rounded animate-pulse"></div>
-              </div>
-              <div className="w-16 h-3 bg-gray-200 rounded animate-pulse"></div>
-            </div>
-          ))}
-        </div>
-      ) : recentActivity.length > 0 ? (
-        <div className="space-y-4">
-          {recentActivity.map((activity, index) => (
-            <div key={index} className="flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-50 transition-colors">
-              <div className={`w-2 h-2 rounded-full ${
-                activity.status === 'success' ? 'bg-green-500' :
-                activity.status === 'info' ? 'bg-blue-500' :
-                activity.status === 'warning' ? 'bg-yellow-500' : 'bg-gray-400'
-              }`} />
-              <div className="flex-1">
-                <p className="text-sm font-medium text-gray-900">{activity.patient}</p>
-                <p className="text-xs text-gray-600">{activity.action}</p>
-              </div>
-              <span className="text-xs text-gray-500">{activity.time}</span>
-            </div>
-          ))}
-        </div>
-      ) : (
-        <div className="text-center py-8">
-          <Activity className="mx-auto h-12 w-12 text-gray-400 mb-4" />
-          <p className="text-gray-500">No recent activity</p>
-        </div>
-      )}
     </div>
   );
 
@@ -292,7 +282,7 @@ const Dashboard: React.FC = () => {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <TodaySchedule />
-        <RecentActivity />
+        <ImageCarousel />
       </div>
 
       {/* Video Consultation Section */}
