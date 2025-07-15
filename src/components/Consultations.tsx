@@ -522,7 +522,7 @@ const Consultations: React.FC = () => {
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
         <div className="bg-white rounded-lg p-8 w-full max-w-2xl m-4 max-h-[90vh] overflow-y-auto shadow-lg">
           <div className="text-center mb-6">
-            <h2 className="text-2xl font-bold text-green-600 mb-1">Crescent Moon Medical Center</h2>
+            <h2 className="text-2xl font-bold text-green-600 mb-1">KBN Nursing Home</h2>
             <div className="text-lg font-semibold text-green-500 mb-2">Medical Bill</div>
           </div>
           <div className="grid grid-cols-2 gap-4 mb-4">
