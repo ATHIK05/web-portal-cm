@@ -1,7 +1,8 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import { FirebaseService } from '../services/firebaseService';  // Import FirebaseService
+import { FirebaseService } from '../services/firebaseService';
+import { useVideoCall } from '../contexts/VideoCallContext';
 
 const JITSI_DOMAIN = 'meet.jit.si';
 
@@ -11,7 +12,7 @@ const VideoConsultation: React.FC = () => {
   const patientId = searchParams.get('patient');
   const jitsiContainerRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
-  const [apiInstance, setApiInstance] = useState<any>(null);  // Store API instance
+  const { startCall, minimizeCall, apiInstance, setApiInstance, isMinimized } = useVideoCall();
 
   // Generate a unique room name for one-to-one call
   const roomName = doctor && patientId
@@ -20,53 +21,80 @@ const VideoConsultation: React.FC = () => {
   const displayName = doctor?.name || user?.displayName || 'Doctor';
 
   useEffect(() => {
-    // @ts-ignore
-    if (window.JitsiMeetExternalAPI && patientId && doctor) {
-      // Clean up previous iframes
-      jitsiContainerRef.current!.innerHTML = '';
-      // @ts-ignore
-      const api = new window.JitsiMeetExternalAPI(JITSI_DOMAIN, {
-        roomName,
-        parentNode: jitsiContainerRef.current,
-        userInfo: { displayName },
-        configOverwrite: {
-          startWithAudioMuted: false,
-          startWithVideoMuted: false,
-        },
-        interfaceConfigOverwrite: {
-          // Customize interface if needed
-        },
-      });
-      setApiInstance(api);
+    if (patientId && doctor && !isMinimized) {
+      // Start the call in context
+      startCall(roomName, patientId, displayName);
 
-      // Automatically send invitation link via chat
+      // Create API instance if not exists
+      if (!apiInstance && window.JitsiMeetExternalAPI) {
+        jitsiContainerRef.current!.innerHTML = '';
+        // @ts-ignore
+        const api = new window.JitsiMeetExternalAPI(JITSI_DOMAIN, {
+          roomName,
+          parentNode: jitsiContainerRef.current,
+          userInfo: { displayName },
+          configOverwrite: {
+            startWithAudioMuted: false,
+            startWithVideoMuted: false,
+          },
+          interfaceConfigOverwrite: {
+            // Customize interface if needed
+          },
+        });
+        setApiInstance(api);
+      }
+
+      // Automatically send invitation link via chat (once)
       const conversationId = [doctor.id, patientId].sort().join('_');
       const inviteLink = `https://${JITSI_DOMAIN}/${roomName}`;
       const messageContent = `Join the video consultation: ${inviteLink}`;
       FirebaseService.sendMessage(
         conversationId,
-        doctor.id,  // Assuming doctor.id is the sender's ID
+        doctor.id,
         patientId,
         messageContent,
         'text'
       ).catch(error => console.error('Failed to send invite:', error));
-
-      // Cleanup: Do not dispose here; we'll handle it with End Call button
     }
-  }, [roomName, displayName, patientId, doctor]);
+  }, [patientId, doctor, roomName, displayName, isMinimized, apiInstance, startCall, setApiInstance]);
 
-  // Function to end the call
+  const handleMinimize = () => {
+    minimizeCall();
+    navigate('/waiting-room');  // Or any default page
+  };
+
   const endCall = () => {
     if (apiInstance) {
       apiInstance.dispose();
       setApiInstance(null);
     }
-    navigate('/chat/' + patientId);  // Navigate back to chat or appropriate page
+    navigate('/waiting-room');
   };
+
+  if (isMinimized) {
+    // Don't render full UI if minimized
+    return null;
+  }
 
   return (
     <div style={{ height: '80vh', width: '100%', position: 'relative' }}>
       <div ref={jitsiContainerRef} style={{ height: '100%', width: '100%' }} />
+      <button
+        onClick={handleMinimize}
+        style={{
+          position: 'absolute',
+          bottom: '20px',
+          left: '20px',
+          padding: '10px 20px',
+          backgroundColor: 'blue',
+          color: 'white',
+          border: 'none',
+          borderRadius: '5px',
+          cursor: 'pointer',
+        }}
+      >
+        Minimize
+      </button>
       <button
         onClick={endCall}
         style={{
