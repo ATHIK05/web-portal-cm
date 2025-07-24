@@ -3,6 +3,7 @@ import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'fire
 import { doc, setDoc, getDoc } from 'firebase/firestore';
 import { auth, db } from '../firebase/config';
 import { User, Lock, Mail, Eye, EyeOff, UserPlus } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 const Login: React.FC = () => {
   const [email, setEmail] = useState('');
@@ -17,6 +18,8 @@ const Login: React.FC = () => {
     experience: '',
     phone: ''
   });
+
+  const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -52,9 +55,22 @@ const Login: React.FC = () => {
         });
 
         console.log('Doctor account created successfully');
+        navigate('/dashboard');
+        return;
       } else {
         // Sign in existing doctor
-        await signInWithEmailAndPassword(auth, email, password);
+        const userCredential = await signInWithEmailAndPassword(auth, email, password);
+        const user = userCredential.user;
+        // Check if doctor document exists
+        const doctorDocRef = doc(db, 'doctors', user.uid);
+        const doctorDoc = await getDoc(doctorDocRef);
+        if (!doctorDoc.exists()) {
+          setError('Doctor profile not found. Please contact support.');
+          setLoading(false);
+          return;
+        }
+        navigate('/dashboard');
+        return;
       }
     } catch (error: any) {
       if (error.code === 'auth/email-already-in-use') {
