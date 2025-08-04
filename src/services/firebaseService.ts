@@ -758,66 +758,121 @@ export class FirebaseService {
       const { jsPDF } = await import('jspdf');
       const doc = new jsPDF();
 
-      // Branding Header
-      doc.setFillColor(59, 130, 246); // Blue
-      doc.rect(0, 0, 210, 30, 'F');
-      doc.setTextColor(255, 255, 255);
-      doc.setFontSize(22);
-      doc.setFont('helvetica', 'bold');
-      doc.text('Crescent Moon Medical Center', 105, 15, { align: 'center' });
-      doc.setFontSize(12);
-      doc.text('Medical Prescription', 105, 25, { align: 'center' });
-
-      // Patient & Doctor Info
+      // Header with Doctor Info (matching the sample format)
+      doc.setFillColor(255, 255, 255); // White background
+      doc.rect(0, 0, 210, 297, 'F');
+      
+      // Doctor Header Section
       doc.setTextColor(0, 0, 0);
-      doc.setFontSize(11);
-      doc.setFont('helvetica', 'normal');
-      doc.text(`Prescription ID: ${prescription.id}`, 15, 40);
-      doc.text(`Date: ${prescription.createdAt.toLocaleDateString()}`, 15, 48);
-      doc.text(`Time: ${prescription.createdAt.toLocaleTimeString()}`, 120, 48);
-      doc.text('Doctor: Dr. Mohamed Athik', 15, 56);
-      doc.text('Specialty: Cardiology', 120, 56);
-
-      // Medicines Table
-      doc.setFontSize(13);
+      doc.setFontSize(16);
       doc.setFont('helvetica', 'bold');
-      doc.text('Prescribed Medicines', 15, 68);
+      doc.text('Dr. A. Atheeb, M.D.(GEN.MED), D.M.(CARDIO).,', 15, 20);
+      
+      doc.setFontSize(12);
+      doc.setFont('helvetica', 'normal');
+      doc.text('Interventional Cardiologist Reg. No 54501', 15, 28);
+      
+      // Consultation Hours
       doc.setFontSize(10);
+      doc.text('Consultations Hours : 10.00 a.m to 1.00 p.m', 15, 38);
+      doc.text('                     6.00 p.m to 9.00 p.m', 15, 46);
+      doc.text('Sunday              10.00 a.m to 12.00 Noon', 15, 54);
+      
+      // Hospital Info (Right side)
+      doc.setFontSize(14);
       doc.setFont('helvetica', 'bold');
-      doc.setFillColor(240, 240, 240);
-      doc.rect(15, 72, 180, 8, 'F');
-      doc.text('No.', 18, 78);
-      doc.text('Medicine', 28, 78);
-      doc.text('Dosage', 80, 78);
-      doc.text('Frequency', 120, 78);
-      doc.text('Duration', 160, 78);
-      let y = 86;
+      doc.text('K.B.N. Nursing Home', 120, 20);
+      
+      doc.setFontSize(10);
       doc.setFont('helvetica', 'normal');
+      doc.text('K.B.N. HEART CARE UNIT,', 120, 30);
+      doc.text('49 /1, Mosikeeranan Street,', 120, 38);
+      doc.text('(Krishna Theatre Road) Erode - 638 003.', 120, 46);
+      doc.text('Phone : 0424 - 2225599, 2210576, 2224477', 120, 54);
+      doc.text('Mob   : 96888 83668', 120, 62);
+      
+      // Logo placeholder (circular)
+      doc.setDrawColor(0, 0, 0);
+      doc.circle(185, 35, 15);
+      doc.setFontSize(8);
+      doc.text('LOGO', 180, 38);
+      
+      // Patient Name and Date
+      doc.setFontSize(12);
+      doc.text('Patient\'s Name :', 15, 80);
+      doc.line(55, 80, 150, 80);
+      
+      doc.text('Date :', 160, 80);
+      doc.text(prescription.createdAt.toLocaleDateString(), 175, 80);
+      doc.line(175, 80, 195, 80);
+      
+      // Prescription Symbol (Rx)
+      doc.setFontSize(48);
+      doc.setFont('times', 'bold');
+      doc.setTextColor(255, 255, 255);
+      doc.setTextColor(0, 0, 0);
+      doc.text('R', 15, 120);
+      
+      // Medicine Table Headers (Tamil and English)
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'normal');
+      
+      // Table structure
+      const tableStartY = 140;
+      const tableHeight = 120;
+      
+      // Draw table borders
+      doc.setDrawColor(0, 0, 0);
+      doc.rect(90, tableStartY, 105, tableHeight); // Main table
+      
+      // Column headers
+      doc.line(120, tableStartY, 120, tableStartY + tableHeight); // First column
+      doc.line(140, tableStartY, 140, tableStartY + tableHeight); // Second column  
+      doc.line(165, tableStartY, 165, tableStartY + tableHeight); // Third column
+      
+      // Header row
+      doc.line(90, tableStartY + 15, 195, tableStartY + 15);
+      
+      // Headers
+      doc.setFontSize(8);
+      doc.text('உணவு', 95, tableStartY + 8);
+      doc.text('காலை', 95, tableStartY + 12);
+      doc.text('முன்', 122, tableStartY + 8);
+      doc.text('பின்', 122, tableStartY + 12);
+      doc.text('மதியம்', 142, tableStartY + 10);
+      doc.text('இரவு', 170, tableStartY + 10);
+      
+      // Add medicines to the prescription area
+      let medicineY = 100;
+      doc.setFontSize(10);
       prescription.medicines.forEach((med, i) => {
-        doc.text(`${i + 1}`, 18, y);
-        doc.text(med.name, 28, y);
-        doc.text(med.dosage, 80, y);
-        doc.text(med.frequency, 120, y);
-        doc.text(med.duration, 160, y);
-        y += 10;
+        if (medicineY > 130) {
+          doc.addPage();
+          medicineY = 30;
+        }
+        doc.text(`${i + 1}. ${med.name} - ${med.dosage}`, 50, medicineY);
+        doc.text(`   ${med.frequency} for ${med.duration}`, 50, medicineY + 8);
+        medicineY += 20;
       });
-
-      // Instructions Section
+      
+      // Instructions
       if (prescription.instructions) {
-        doc.setFont('helvetica', 'bold');
-        doc.setFontSize(12);
-        doc.text('Instructions:', 15, y + 8);
-        doc.setFont('helvetica', 'normal');
-        doc.setFontSize(10);
-        const splitInstructions = doc.splitTextToSize(prescription.instructions, 170);
-        doc.text(splitInstructions, 15, y + 16);
-        y += 16 + splitInstructions.length * 6;
+        doc.setFontSize(9);
+        doc.text('Special Instructions:', 15, 270);
+        const splitInstructions = doc.splitTextToSize(prescription.instructions, 180);
+        doc.text(splitInstructions, 15, 278);
       }
-
-      // Footer
-      doc.setFontSize(9);
-      doc.setTextColor(120, 120, 120);
-      doc.text('This is a computer-generated prescription. For queries, contact Crescent Moon Medical Center.', 15, 285);
+      
+      // Next Appointment
+      doc.setFontSize(12);
+      doc.setFont('helvetica', 'bold');
+      doc.text('Next Appointment Date :', 15, 290);
+      doc.line(75, 290, 150, 290);
+      
+      // Hospital name in Tamil at bottom
+      doc.setFontSize(10);
+      doc.text('K.B.N. மருத்துவமனை', 15, 295);
+      
       return doc.output('datauristring').split(',')[1];
     } catch (error) {
       console.error('Error generating prescription PDF:', error);

@@ -6,32 +6,32 @@ const Header: React.FC = () => {
   const { doctor, signOut } = useAuth();
 
   return (
-    <header className="bg-white shadow-sm border-b border-gray-200">
+    <header className="header-glass shadow-xl animate-slide-in-up">
       <div className="flex justify-between items-center px-6 py-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Doctor Portal</h1>
+          <h1 className="text-2xl font-bold gradient-text">Doctor Portal</h1>
           <p className="text-sm text-gray-600">Manage your practice efficiently</p>
         </div>
         
         <div className="flex items-center space-x-4">
-          <button className="p-2 text-gray-400 hover:text-gray-600 transition-colors">
+          <button className="p-3 text-gray-400 hover:text-gray-600 transition-all duration-300 hover:bg-white/10 rounded-xl transform hover:scale-110">
             <Bell size={20} />
           </button>
           
-          <button className="p-2 text-gray-400 hover:text-gray-600 transition-colors">
+          <button className="p-3 text-gray-400 hover:text-gray-600 transition-all duration-300 hover:bg-white/10 rounded-xl transform hover:scale-110">
             <Settings size={20} />
           </button>
           
-          <div className="flex items-center space-x-3">
-            <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center">
+          <div className="flex items-center space-x-3 glass-card px-4 py-2 rounded-xl">
+            <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center shadow-lg pulse-glow">
               {doctor?.photo ? (
                 <img 
                   src={doctor.photo} 
                   alt="Doctor" 
-                  className="w-8 h-8 rounded-full object-cover"
+                  className="w-10 h-10 rounded-full object-cover"
                 />
               ) : (
-                <User size={18} className="text-white" />
+                <User size={20} className="text-white" />
               )}
             </div>
             <div className="text-sm">
@@ -42,7 +42,7 @@ const Header: React.FC = () => {
           
           <button 
             onClick={signOut}
-            className="p-2 text-gray-400 hover:text-red-600 transition-colors"
+            className="p-3 text-gray-400 hover:text-red-600 transition-all duration-300 hover:bg-red-50/10 rounded-xl transform hover:scale-110"
           >
             <LogOut size={20} />
           </button>

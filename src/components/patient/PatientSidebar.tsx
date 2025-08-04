@@ -31,13 +31,13 @@ const PatientSidebar: React.FC = () => {
   ];
 
   return (
-    <aside className="w-64 bg-white shadow-lg border-r border-gray-200">
-      <div className="p-6">
+    <aside className="w-64 sidebar-glass shadow-2xl animate-slide-in-right">
+      <div className="p-6 border-b border-white/10">
         <div className="flex items-center space-x-2">
-          <div className="w-8 h-8 bg-green-600 rounded-lg flex items-center justify-center">
+          <div className="w-8 h-8 bg-gradient-to-br from-green-500 to-emerald-600 rounded-lg flex items-center justify-center shadow-lg pulse-glow">
             <User size={20} className="text-white" />
           </div>
-          <span className="text-xl font-bold text-gray-900">MediCare Patient</span>
+          <span className="text-xl font-bold gradient-text">MediCare Patient</span>
         </div>
       </div>
       
@@ -48,14 +48,14 @@ const PatientSidebar: React.FC = () => {
               <NavLink
                 to={item.path}
                 className={({ isActive }) =>
-                  `flex items-center space-x-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors duration-200 ${
+                  `flex items-center space-x-3 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-300 transform hover:scale-105 ${
                     isActive
-                      ? 'bg-green-50 text-green-700 border-r-2 border-green-700'
-                      : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'
+                      ? 'bg-gradient-to-r from-green-500/20 to-emerald-600/20 text-green-700 border-r-4 border-green-500 shadow-lg backdrop-blur-sm'
+                      : 'text-gray-700 hover:bg-white/10 hover:text-gray-900 hover:shadow-md'
                   }`
                 }
               >
-                <item.icon size={18} />
+                <item.icon size={18} className="transition-transform duration-300 group-hover:scale-110" />
                 <span>{item.label}</span>
               </NavLink>
             </li>
