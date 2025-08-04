@@ -15,6 +15,7 @@ import {
 import { usePatientAuth } from '../../contexts/PatientAuthContext';
 import { PatientFirebaseService } from '../../services/patientFirebaseService';
 import { Link } from 'react-router-dom';
+import { Appointment } from '../../types';
 
 const PatientDashboard: React.FC = () => {
   const { patient, user } = usePatientAuth();
@@ -24,8 +25,8 @@ const PatientDashboard: React.FC = () => {
     totalDoctors: 0,
     unreadMessages: 0
   });
-  const [upcomingAppointments, setUpcomingAppointments] = useState<any[]>([]);
-  const [recentActivity, setRecentActivity] = useState<any[]>([]);
+  const [upcomingAppointments, setUpcomingAppointments] = useState<Appointment[]>([]);
+  const [recentActivity, setRecentActivity] = useState<{ type: string; message: string; time: string; doctorName: string }[]>([]);
   const [loading, setLoading] = useState(true);
   const [availableDoctors, setAvailableDoctors] = useState<any[]>([]);
 
@@ -43,7 +44,7 @@ const PatientDashboard: React.FC = () => {
       // Fetch patient appointments
       const appointments = await PatientFirebaseService.getPatientAppointments(user.uid);
       const upcoming = appointments.filter(apt => {
-        const aptDate = new Date(apt.date);
+        const aptDate = apt.date instanceof Date ? apt.date : new Date(apt.date);
         return aptDate > new Date() && apt.status === 'scheduled';
       });
       const completed = appointments.filter(apt => apt.status === 'completed');
@@ -58,10 +59,10 @@ const PatientDashboard: React.FC = () => {
       const activity = appointments.slice(0, 4).map(apt => ({
         type: apt.status === 'completed' ? 'completed' : 'scheduled',
         message: apt.status === 'completed' 
-          ? `Consultation completed with Dr. ${apt.doctorName}` 
-          : `Appointment scheduled with Dr. ${apt.doctorName}`,
+          ? `Consultation completed with Dr. ${apt.doctorName || 'Unknown Doctor'}` 
+          : `Appointment scheduled with Dr. ${apt.doctorName || 'Unknown Doctor'}`,
         time: new Date(apt.date).toLocaleDateString(),
-        doctorName: apt.doctorName
+        doctorName: apt.doctorName || 'Unknown Doctor',
       }));
       
       setRecentActivity(activity);
@@ -190,10 +191,10 @@ const PatientDashboard: React.FC = () => {
                     </div>
                     <div>
                       <p className="text-sm font-medium text-gray-900">
-                        Dr. {appointment.doctorName}
+                        Dr. {appointment.doctorName || 'Unknown Doctor'}
                       </p>
                       <p className="text-xs text-gray-600">
-                        {appointment.timeSlot} • {appointment.doctorSpecialty}
+                        {appointment.timeSlot} • {appointment.doctorSpecialty || 'Unknown Specialty'}
                       </p>
                     </div>
                   </div>

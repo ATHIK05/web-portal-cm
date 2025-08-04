@@ -89,6 +89,8 @@ export interface Appointment {
   billId?: string;
   hasPrescription?: boolean;
   hasBill?: boolean;
+  doctorName?: string;
+  doctorSpecialty?: string;
   createdAt?: Date;
   lastUpdated?: Date;
 }
