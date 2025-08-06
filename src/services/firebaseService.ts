@@ -272,7 +272,7 @@ export class FirebaseService {
   }
 
   // Prescription Services
-  static async createPrescription(appointmentId: string, medicines: any[], instructions: string): Promise<string | null> {
+  static async createPrescription(appointmentId: string, medicines: any[], instructions: string, nextAppointment?: string): Promise<string | null> {
     try {
       // Generate PDF first
       const pdfBase64 = await this.generatePrescriptionPDF({
@@ -280,6 +280,7 @@ export class FirebaseService {
         appointmentId,
         medicines,
         instructions,
+        nextAppointment,
         createdAt: new Date()
       } as any);
 
@@ -287,6 +288,7 @@ export class FirebaseService {
         appointmentId,
         medicines,
         instructions,
+        nextAppointment,
         pdfBase64,
         createdAt: Timestamp.now(),
         lastUpdated: Timestamp.now()
@@ -758,120 +760,172 @@ export class FirebaseService {
       const { jsPDF } = await import('jspdf');
       const doc = new jsPDF();
 
-      // Header with Doctor Info (matching the sample format)
-      doc.setFillColor(255, 255, 255); // White background
+      // Set up page with white background
+      doc.setFillColor(255, 255, 255);
       doc.rect(0, 0, 210, 297, 'F');
       
-      // Doctor Header Section
+      // Doctor Header Section (Left side)
       doc.setTextColor(0, 0, 0);
-      doc.setFontSize(16);
-      doc.setFont('helvetica', 'bold');
-      doc.text('Dr. A. Atheeb, M.D.(GEN.MED), D.M.(CARDIO).,', 15, 20);
-      
-      doc.setFontSize(12);
-      doc.setFont('helvetica', 'normal');
-      doc.text('Interventional Cardiologist Reg. No 54501', 15, 28);
-      
-      // Consultation Hours
-      doc.setFontSize(10);
-      doc.text('Consultations Hours : 10.00 a.m to 1.00 p.m', 15, 38);
-      doc.text('                     6.00 p.m to 9.00 p.m', 15, 46);
-      doc.text('Sunday              10.00 a.m to 12.00 Noon', 15, 54);
-      
-      // Hospital Info (Right side)
       doc.setFontSize(14);
       doc.setFont('helvetica', 'bold');
-      doc.text('K.B.N. Nursing Home', 120, 20);
+      doc.text('Dr. A. Atheeb, M.D.(GEN.MED), D.M.(CARDIO).', 15, 20);
       
       doc.setFontSize(10);
       doc.setFont('helvetica', 'normal');
-      doc.text('K.B.N. HEART CARE UNIT,', 120, 30);
-      doc.text('49 /1, Mosikeeranan Street,', 120, 38);
-      doc.text('(Krishna Theatre Road) Erode - 638 003.', 120, 46);
-      doc.text('Phone : 0424 - 2225599, 2210576, 2224477', 120, 54);
-      doc.text('Mob   : 96888 83668', 120, 62);
+      doc.text('Interventional Cardiologist Reg. No. 54501', 15, 28);
+      
+      doc.setFontSize(9);
+      doc.text('Consultations Hours : 10.00 a.m to 1.00 p.m', 15, 36);
+      doc.text('                     6.00 p.m to 9.00 p.m', 15, 42);
+      doc.text('Sunday              10.00 a.m to 12.00 Noon', 15, 48);
+      
+      // Hospital Info (Right side)
+      doc.setFontSize(12);
+      doc.setFont('helvetica', 'bold');
+      doc.text('K.B.N. Nursing Home', 130, 20);
+      
+      doc.setFontSize(9);
+      doc.setFont('helvetica', 'normal');
+      doc.text('K.B.N. HEART CARE UNIT,', 130, 28);
+      doc.text('49/1, Mosikeeranan Street,', 130, 34);
+      doc.text('(Krishna Theatre Road) Erode - 638 003.', 130, 40);
+      doc.text('Phone : 0424 - 2225599, 2210576, 2224477', 130, 46);
+      doc.text('Mob   : 96888 83668', 130, 52);
       
       // Logo placeholder (circular)
       doc.setDrawColor(0, 0, 0);
-      doc.circle(185, 35, 15);
-      doc.setFontSize(8);
-      doc.text('LOGO', 180, 38);
+      doc.setLineWidth(1);
+      doc.circle(185, 35, 12);
+      doc.setFontSize(7);
+      doc.text('LOGO', 181, 38);
       
-      // Patient Name and Date
-      doc.setFontSize(12);
-      doc.text('Patient\'s Name :', 15, 80);
-      doc.line(55, 80, 150, 80);
-      
-      doc.text('Date :', 160, 80);
-      doc.text(prescription.createdAt.toLocaleDateString(), 175, 80);
-      doc.line(175, 80, 195, 80);
-      
-      // Prescription Symbol (Rx)
-      doc.setFontSize(48);
-      doc.setFont('times', 'bold');
-      doc.setTextColor(255, 255, 255);
-      doc.setTextColor(0, 0, 0);
-      doc.text('R', 15, 120);
-      
-      // Medicine Table Headers (Tamil and English)
-      doc.setFontSize(10);
+      // Patient Name and Date section
+      doc.setFontSize(11);
+      doc.setFont('helvetica', 'bold');
+      doc.text('Patient\'s Name :', 15, 70);
+      doc.line(55, 70, 140, 70);
       doc.setFont('helvetica', 'normal');
+      // Get patient name from appointment or prescription data
+      const patientName = prescription.patientName || 'Patient Name';
+      doc.text(patientName, 60, 69);
       
-      // Table structure
-      const tableStartY = 140;
-      const tableHeight = 120;
+      doc.setFont('helvetica', 'bold');
+      doc.text('Date :', 150, 70);
+      doc.line(165, 70, 195, 70);
+      doc.setFont('helvetica', 'normal');
+      doc.text(prescription.createdAt.toLocaleDateString('en-GB'), 168, 69);
       
-      // Draw table borders
+      // Large Rx Symbol
+      doc.setFontSize(40);
+      doc.setFont('times', 'italic');
+      doc.setTextColor(0, 0, 0);
+      doc.text('℞', 15, 100);
+      
+      // Prescription Table
+      const tableStartY = 110;
+      const tableWidth = 180;
+      const tableHeight = 80;
+      const rowHeight = 15;
+      
+      // Draw main table border
       doc.setDrawColor(0, 0, 0);
-      doc.rect(90, tableStartY, 105, tableHeight); // Main table
+      doc.setLineWidth(1);
+      doc.rect(15, tableStartY, tableWidth, tableHeight);
       
-      // Column headers
-      doc.line(120, tableStartY, 120, tableStartY + tableHeight); // First column
-      doc.line(140, tableStartY, 140, tableStartY + tableHeight); // Second column  
-      doc.line(165, tableStartY, 165, tableStartY + tableHeight); // Third column
+      // Column widths
+      const col1Width = 30; // Food timing
+      const col2Width = 25; // Morning
+      const col3Width = 25; // Afternoon  
+      const col4Width = 25; // Night
+      const col5Width = 75; // Medicine details
       
-      // Header row
-      doc.line(90, tableStartY + 15, 195, tableStartY + 15);
+      // Draw column separators
+      let x = 15 + col1Width;
+      doc.line(x, tableStartY, x, tableStartY + tableHeight);
+      x += col2Width;
+      doc.line(x, tableStartY, x, tableStartY + tableHeight);
+      x += col3Width;
+      doc.line(x, tableStartY, x, tableStartY + tableHeight);
+      x += col4Width;
+      doc.line(x, tableStartY, x, tableStartY + tableHeight);
       
-      // Headers
+      // Draw header row separator
+      doc.line(15, tableStartY + rowHeight, 15 + tableWidth, tableStartY + rowHeight);
+      
+      // Table Headers
       doc.setFontSize(8);
-      doc.text('உணவு', 95, tableStartY + 8);
-      doc.text('காலை', 95, tableStartY + 12);
-      doc.text('முன்', 122, tableStartY + 8);
-      doc.text('பின்', 122, tableStartY + 12);
-      doc.text('மதியம்', 142, tableStartY + 10);
-      doc.text('இரவு', 170, tableStartY + 10);
+      doc.setFont('helvetica', 'bold');
       
-      // Add medicines to the prescription area
-      let medicineY = 100;
-      doc.setFontSize(10);
-      prescription.medicines.forEach((med, i) => {
-        if (medicineY > 130) {
-          doc.addPage();
-          medicineY = 30;
+      // Food timing header
+      doc.text('உணவு', 30, tableStartY + 6, { align: 'center' });
+      doc.text('முன் / பின்', 30, tableStartY + 12, { align: 'center' });
+      
+      // Time headers
+      doc.text('காலை', 57.5, tableStartY + 9, { align: 'center' });
+      doc.text('மதியம்', 82.5, tableStartY + 9, { align: 'center' });
+      doc.text('இரவு', 107.5, tableStartY + 9, { align: 'center' });
+      doc.text('Medicine Details', 132.5, tableStartY + 9, { align: 'center' });
+      
+      // Medicine rows
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(8);
+      
+      prescription.medicines.forEach((medicine, index) => {
+        const rowY = tableStartY + rowHeight + (index * rowHeight);
+        
+        // Draw row separator
+        if (index > 0) {
+          doc.line(15, rowY, 15 + tableWidth, rowY);
         }
-        doc.text(`${i + 1}. ${med.name} - ${med.dosage}`, 50, medicineY);
-        doc.text(`   ${med.frequency} for ${med.duration}`, 50, medicineY + 8);
-        medicineY += 20;
+        
+        // Food timing
+        const foodText = medicine.foodTiming === 'before' ? 'முன்' : 'பின்';
+        doc.text(foodText, 30, rowY + 8, { align: 'center' });
+        
+        // Dosage times
+        doc.text(medicine.morning || '1', 57.5, rowY + 8, { align: 'center' });
+        doc.text(medicine.afternoon || '1', 82.5, rowY + 8, { align: 'center' });
+        doc.text(medicine.night || '1', 107.5, rowY + 8, { align: 'center' });
+        
+        // Medicine details
+        const medicineText = `${medicine.name} - ${medicine.dosage} for ${medicine.duration}`;
+        doc.text(medicineText, 135, rowY + 5);
       });
       
-      // Instructions
+      // Other Instructions section
+      let currentY = tableStartY + tableHeight + 20;
+      
       if (prescription.instructions) {
+        doc.setFontSize(11);
+        doc.setFont('helvetica', 'bold');
+        doc.text('Other Instructions', 15, currentY);
+        currentY += 10;
+        
         doc.setFontSize(9);
-        doc.text('Special Instructions:', 15, 270);
+        doc.setFont('helvetica', 'normal');
         const splitInstructions = doc.splitTextToSize(prescription.instructions, 180);
-        doc.text(splitInstructions, 15, 278);
+        doc.text(splitInstructions, 15, currentY);
+        currentY += splitInstructions.length * 5 + 10;
       }
       
-      // Next Appointment
-      doc.setFontSize(12);
+      // Next Appointment Date
+      doc.setFontSize(11);
       doc.setFont('helvetica', 'bold');
-      doc.text('Next Appointment Date :', 15, 290);
-      doc.line(75, 290, 150, 290);
+      doc.text('Next Appointment Date :', 15, currentY);
+      doc.line(75, currentY, 140, currentY);
+      
+      if (prescription.nextAppointment) {
+        doc.setFont('helvetica', 'normal');
+        const nextDate = new Date(prescription.nextAppointment);
+        doc.text(nextDate.toLocaleDateString('en-GB'), 80, currentY - 1);
+      }
+      
+      currentY += 15;
       
       // Hospital name in Tamil at bottom
-      doc.setFontSize(10);
-      doc.text('K.B.N. மருத்துவமனை', 15, 295);
+      doc.setFontSize(11);
+      doc.setFont('helvetica', 'bold');
+      doc.text('K.B.N. மருத்துவமனை', 15, currentY);
       
       return doc.output('datauristring').split(',')[1];
     } catch (error) {

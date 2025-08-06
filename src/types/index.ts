@@ -98,8 +98,10 @@ export interface Appointment {
 export interface Prescription {
   id: string;
   appointmentId: string;
+  patientName?: string;
   medicines: Medicine[];
   instructions: string;
+  nextAppointment?: string;
   createdAt: Date;
   pdfUrl?: string;
   pdfBase64?: string;
@@ -108,8 +110,11 @@ export interface Prescription {
 export interface Medicine {
   name: string;
   dosage: string;
-  frequency: string;
   duration: string;
+  foodTiming?: 'before' | 'after';
+  morning?: string;
+  afternoon?: string;
+  night?: string;
   instructions?: string;
 }
 
