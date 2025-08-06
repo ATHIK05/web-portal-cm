@@ -2,6 +2,49 @@ import { useState, useEffect } from 'react';
 import { FirebaseService } from '../services/firebaseService';
 import { useAuth } from '../contexts/AuthContext';
 
+export const useFirebaseData = <T>(collection: string) => {
+  const { user } = useAuth();
+  const [data, setData] = useState<T[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!user) return;
+
+    const fetchData = async () => {
+      setLoading(true);
+      try {
+        let result;
+        if (collection === 'consultations') {
+          result = await FirebaseService.getConsultations(user.uid);
+        } else {
+          // Add other collection handlers as needed
+          result = [];
+        }
+        setData(result);
+        setError(null);
+      } catch (err) {
+        setError(`Failed to fetch ${collection}`);
+        console.error(err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, [user, collection]);
+
+  const refetch = () => {
+    if (user) {
+      if (collection === 'consultations') {
+        FirebaseService.getConsultations(user.uid).then(setData);
+      }
+    }
+  };
+
+  return { data, loading, error, refetch };
+};
+
 export const useAppointments = (date?: Date) => {
   const { user } = useAuth();
   const [appointments, setAppointments] = useState<any[]>([]);
