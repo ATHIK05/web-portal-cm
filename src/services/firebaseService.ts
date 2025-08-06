@@ -1004,6 +1004,67 @@ export class FirebaseService {
     }
   }
 
+  // Consultation Services
+  static async getConsultations(doctorId: string): Promise<any[]> {
+    try {
+      const consultationsQuery = query(
+        collection(db, 'consultations'),
+        where('doctorId', '==', doctorId),
+        orderBy('createdAt', 'desc')
+      );
+      
+      const snapshot = await getDocs(consultationsQuery);
+      return snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+        createdAt: doc.data().createdAt?.toDate() || new Date(),
+        updatedAt: doc.data().updatedAt?.toDate() || new Date()
+      }));
+    } catch (error) {
+      console.error('Error fetching consultations:', error);
+      return [];
+    }
+  }
+
+  static async addConsultation(consultationData: any): Promise<string | null> {
+    try {
+      const consultation = {
+        ...consultationData,
+        createdAt: Timestamp.now(),
+        updatedAt: Timestamp.now()
+      };
+      
+      const docRef = await addDoc(collection(db, 'consultations'), consultation);
+      return docRef.id;
+    } catch (error) {
+      console.error('Error adding consultation:', error);
+      return null;
+    }
+  }
+
+  static async updateConsultation(consultationId: string, updateData: any): Promise<boolean> {
+    try {
+      await updateDoc(doc(db, 'consultations', consultationId), {
+        ...updateData,
+        updatedAt: Timestamp.now()
+      });
+      return true;
+    } catch (error) {
+      console.error('Error updating consultation:', error);
+      return false;
+    }
+  }
+
+  static async deleteConsultation(consultationId: string): Promise<boolean> {
+    try {
+      await deleteDoc(doc(db, 'consultations', consultationId));
+      return true;
+    } catch (error) {
+      console.error('Error deleting consultation:', error);
+      return false;
+    }
+  }
+
   // Download PDF from base64
   static downloadPDFFromBase64(base64: string, filename: string): void {
     try {
@@ -1065,3 +1126,9 @@ export class FirebaseService {
     }
   }
 }
+
+// Export consultation methods as named exports
+export const getConsultations = FirebaseService.getConsultations;
+export const addConsultation = FirebaseService.addConsultation;
+export const updateConsultation = FirebaseService.updateConsultation;
+export const deleteConsultation = FirebaseService.deleteConsultation;
