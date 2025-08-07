@@ -111,6 +111,7 @@ export interface Medicine {
   name: string;
   dosage: string;
   duration: string;
+  frequency?: string;
   foodTiming?: 'before' | 'after';
   morning?: string;
   afternoon?: string;

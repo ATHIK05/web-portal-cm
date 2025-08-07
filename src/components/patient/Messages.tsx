@@ -55,7 +55,7 @@ const Messages: React.FC = () => {
     if (!newMessage.trim() || !selectedConversation) return;
     setLoading(true);
     const conversationId = getConversationId(selectedConversation.doctorId);
-    await PatientFirebaseService.sendMessage(conversationId, user.uid, selectedConversation.doctorId, newMessage, 'text');
+    await PatientFirebaseService.sendMessage(conversationId, user!.uid, selectedConversation.doctorId, newMessage, 'text');
     setNewMessage('');
     setLoading(false);
   };

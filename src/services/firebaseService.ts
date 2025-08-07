@@ -760,7 +760,7 @@ export class FirebaseService {
       const { jsPDF } = await import('jspdf');
       const doc = new jsPDF();
 
-      // Set up page with white background
+      // Page setup
       doc.setFillColor(255, 255, 255);
       doc.rect(0, 0, 210, 297, 'F');
       
@@ -792,20 +792,19 @@ export class FirebaseService {
       doc.text('Phone : 0424 - 2225599, 2210576, 2224477', 130, 46);
       doc.text('Mob   : 96888 83668', 130, 52);
       
-      // Logo placeholder (circular)
+      // Logo placeholder
       doc.setDrawColor(0, 0, 0);
       doc.setLineWidth(1);
       doc.circle(185, 35, 12);
       doc.setFontSize(7);
       doc.text('LOGO', 181, 38);
       
-      // Patient Name and Date section
+      // Patient Name and Date
       doc.setFontSize(11);
       doc.setFont('helvetica', 'bold');
       doc.text('Patient\'s Name :', 15, 70);
       doc.line(55, 70, 140, 70);
       doc.setFont('helvetica', 'normal');
-      // Get patient name from appointment or prescription data
       const patientName = prescription.patientName || 'Patient Name';
       doc.text(patientName, 60, 69);
       
@@ -818,14 +817,15 @@ export class FirebaseService {
       // Large Rx Symbol
       doc.setFontSize(40);
       doc.setFont('times', 'italic');
-      doc.setTextColor(0, 0, 0);
       doc.text('℞', 15, 100);
       
       // Prescription Table
       const tableStartY = 110;
       const tableWidth = 180;
-      const tableHeight = 80;
+      const numMedicines = prescription.medicines.length;
       const rowHeight = 15;
+      const headerHeight = 15;
+      const tableHeight = headerHeight + (numMedicines * rowHeight);
       
       // Draw main table border
       doc.setDrawColor(0, 0, 0);
@@ -850,7 +850,7 @@ export class FirebaseService {
       doc.line(x, tableStartY, x, tableStartY + tableHeight);
       
       // Draw header row separator
-      doc.line(15, tableStartY + rowHeight, 15 + tableWidth, tableStartY + rowHeight);
+      doc.line(15, tableStartY + headerHeight, 15 + tableWidth, tableStartY + headerHeight);
       
       // Table Headers
       doc.setFontSize(8);
@@ -871,7 +871,7 @@ export class FirebaseService {
       doc.setFontSize(8);
       
       prescription.medicines.forEach((medicine, index) => {
-        const rowY = tableStartY + rowHeight + (index * rowHeight);
+        const rowY = tableStartY + headerHeight + (index * rowHeight);
         
         // Draw row separator
         if (index > 0) {
@@ -889,7 +889,8 @@ export class FirebaseService {
         
         // Medicine details
         const medicineText = `${medicine.name} - ${medicine.dosage} for ${medicine.duration}`;
-        doc.text(medicineText, 135, rowY + 5);
+        const splitText = doc.splitTextToSize(medicineText, 70);
+        doc.text(splitText, 135, rowY + 5);
       });
       
       // Other Instructions section

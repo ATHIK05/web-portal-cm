@@ -172,15 +172,42 @@ const PatientPrescriptions: React.FC = () => {
                       
                       <div className="ml-13">
                         <h4 className="font-medium text-gray-900 mb-2">Medicines:</h4>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
+                        <div className="bg-white border border-gray-200 rounded-lg overflow-hidden mb-3">
+                          <table className="w-full text-sm">
+                            <thead className="bg-gray-50">
+                              <tr>
+                                <th className="px-3 py-2 text-left font-medium text-gray-700">Medicine</th>
+                                <th className="px-3 py-2 text-center font-medium text-gray-700">Morning</th>
+                                <th className="px-3 py-2 text-center font-medium text-gray-700">Afternoon</th>
+                                <th className="px-3 py-2 text-center font-medium text-gray-700">Night</th>
+                                <th className="px-3 py-2 text-center font-medium text-gray-700">Food</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-gray-200">
                           {prescription.medicines?.map((medicine: any, index: number) => (
-                            <div key={index} className="bg-gray-50 rounded-lg p-3">
-                              <p className="font-medium text-gray-900">{medicine.name}</p>
-                              <p className="text-sm text-gray-600">
-                                {medicine.dosage} • {medicine.frequency} • {medicine.duration}
-                              </p>
-                            </div>
+                              <tr key={index} className="hover:bg-gray-50">
+                                <td className="px-3 py-2">
+                                  <div>
+                                    <p className="font-medium text-gray-900">{medicine.name}</p>
+                                    <p className="text-xs text-gray-500">{medicine.dosage} • {medicine.duration}</p>
+                                  </div>
+                                </td>
+                                <td className="px-3 py-2 text-center text-gray-700">{medicine.morning || '1'}</td>
+                                <td className="px-3 py-2 text-center text-gray-700">{medicine.afternoon || '1'}</td>
+                                <td className="px-3 py-2 text-center text-gray-700">{medicine.night || '1'}</td>
+                                <td className="px-3 py-2 text-center">
+                                  <span className={`px-2 py-1 rounded-full text-xs ${
+                                    medicine.foodTiming === 'before' 
+                                      ? 'bg-blue-100 text-blue-800' 
+                                      : 'bg-orange-100 text-orange-800'
+                                  }`}>
+                                    {medicine.foodTiming === 'before' ? 'Before' : 'After'}
+                                  </span>
+                                </td>
+                              </tr>
                           ))}
+                            </tbody>
+                          </table>
                         </div>
                         
                         {prescription.instructions && (

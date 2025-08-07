@@ -281,7 +281,7 @@ const BookAppointment: React.FC = () => {
               <div className="space-y-2 text-sm text-gray-600">
                 <div className="flex items-center space-x-2">
                   <Clock size={14} />
-                  <span>{doctor.experience} years experience</span>
+                  <span>{doctor.experience || 0} years experience</span>
                 </div>
                 <div className="flex items-center space-x-2">
                   <MapPin size={14} />
@@ -290,6 +290,10 @@ const BookAppointment: React.FC = () => {
                 <div className="flex items-center space-x-2">
                   <Star size={14} className="text-yellow-500" />
                   <span>4.8 (120 reviews)</span>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Phone size={14} />
+                  <span>{doctor.phone || 'Contact via portal'}</span>
                 </div>
               </div>
               <div className="mt-3 flex items-center justify-between">
@@ -319,7 +323,7 @@ const BookAppointment: React.FC = () => {
         <button
           onClick={() => setStep(2)}
           disabled={!selectedDoctor}
-          className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
+          className="px-6 py-3 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-xl font-medium hover:from-green-700 hover:to-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 hover:scale-105 shadow-lg"
         >
           Next: Select Date & Time
         </button>

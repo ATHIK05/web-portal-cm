@@ -279,8 +279,9 @@ const PatientDashboard: React.FC = () => {
                     <div>
                       <p className="text-sm font-medium text-gray-900">Dr. {doctor.name}</p>
                       <p className="text-xs text-gray-600">
-                        {doctor.specializations?.[0]} • {doctor.experience} years
+                        {doctor.specializations?.[0] || 'General'} • {doctor.experience || 0} years
                       </p>
+                      <p className="text-xs text-gray-500">{doctor.phone || 'Contact via portal'}</p>
                     </div>
                   </div>
                   <div className="flex space-x-2">
