@@ -127,7 +127,7 @@ const Patients: React.FC = () => {
         doctorSpecialty,
         patientId: schedulePatient.id,
         patientName: `${schedulePatient.firstName} ${schedulePatient.lastName}`,
-        appointmentDate: scheduleDate,
+        date: scheduleDate,
         timeSlot: scheduleTime,
         type: 'checkup',
         status: 'scheduled',

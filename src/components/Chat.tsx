@@ -142,7 +142,7 @@ const Chat: React.FC = () => {
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
-      sendMessage();
+      handleSendMessage();
     }
   };
 
@@ -291,7 +291,7 @@ const Chat: React.FC = () => {
           </button>
           
           <button
-            onClick={sendMessage}
+            onClick={handleSendMessage}
             disabled={!newMessage.trim()}
             className="p-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
           >

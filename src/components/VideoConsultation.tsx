@@ -1,7 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import { FirebaseService } from '../services/firebaseService';
 import { useVideoCall } from '../contexts/VideoCallContext';
 
 const JITSI_DOMAIN = 'meet.jit.si';
@@ -16,7 +15,7 @@ const VideoConsultation: React.FC = () => {
 
   // Generate a unique room name for one-to-one call
   const roomName = doctor && patientId
-    ? [doctor.id, patientId].sort().join('_')
+    ? [user?.uid, patientId].sort().join('_')
     : 'default_room';
   const displayName = doctor?.name || user?.displayName || 'Doctor';
 
@@ -44,17 +43,7 @@ const VideoConsultation: React.FC = () => {
         setApiInstance(api);
       }
 
-      // Automatically send invitation link via chat (once)
-      const conversationId = [doctor.id, patientId].sort().join('_');
-      const inviteLink = `https://${JITSI_DOMAIN}/${roomName}`;
-      const messageContent = `Join the video consultation: ${inviteLink}`;
-      FirebaseService.sendMessage(
-        conversationId,
-        doctor.id,
-        patientId,
-        messageContent,
-        'text'
-      ).catch(error => console.error('Failed to send invite:', error));
+      // Note: Invitation link can be sent via chat if needed
     }
   }, [patientId, doctor, roomName, displayName, isMinimized, apiInstance, startCall, setApiInstance]);
 

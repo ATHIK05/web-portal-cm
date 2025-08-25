@@ -104,8 +104,8 @@ export class PatientFirebaseService {
       const appointmentsQuery = query(
         collection(db, 'appointments'),
         where('doctorId', '==', doctorId),
-        where('appointmentDate', '>=', Timestamp.fromDate(startOfDay)),
-        where('appointmentDate', '<=', Timestamp.fromDate(endOfDay)),
+        where('date', '>=', Timestamp.fromDate(startOfDay)),
+        where('date', '<=', Timestamp.fromDate(endOfDay)),
         where('status', '==', 'scheduled')
       );
 
@@ -123,7 +123,7 @@ export class PatientFirebaseService {
       const appointmentsQuery = query(
         collection(db, 'appointments'),
         where('patientId', '==', patientId),
-        orderBy('appointmentDate', 'desc')
+        orderBy('date', 'desc')
       );
 
       const snapshot = await getDocs(appointmentsQuery);
@@ -132,7 +132,7 @@ export class PatientFirebaseService {
         return {
           id: doc.id,
           ...data,
-          date: data.appointmentDate ? data.appointmentDate.toDate() : new Date(),
+          date: data.date ? data.date.toDate() : new Date(),
         };
       }) as Appointment[];
       
@@ -153,7 +153,7 @@ export class PatientFirebaseService {
         const conflictQuery = query(
           appointmentsRef,
           where('doctorId', '==', appointmentData.doctorId),
-          where('appointmentDate', '==', Timestamp.fromDate(appointmentData.appointmentDate)),
+          where('date', '==', Timestamp.fromDate(appointmentData.appointmentDate)),
           where('timeSlot', '==', appointmentData.timeSlot),
           where('status', '==', 'scheduled')
         );
@@ -167,7 +167,7 @@ export class PatientFirebaseService {
         const newAppointmentRef = doc(appointmentsRef);
         transaction.set(newAppointmentRef, {
           ...appointmentData,
-          appointmentDate: Timestamp.fromDate(appointmentData.appointmentDate),
+          date: Timestamp.fromDate(appointmentData.appointmentDate),
           createdAt: Timestamp.now(),
           updatedAt: Timestamp.now()
         });
@@ -355,7 +355,7 @@ export class PatientFirebaseService {
         doctorName: doctor.name,
         doctorSpecialty: doctor.specializations?.[0] || 'Emergency',
         patientId,
-        appointmentDate: now,
+        date: now,
         timeSlot: emergencySlot,
         type: 'emergency',
         reason: `EMERGENCY: ${reason}`,
@@ -366,7 +366,7 @@ export class PatientFirebaseService {
 
       const appointmentRef = await addDoc(collection(db, 'appointments'), {
         ...appointmentData,
-        appointmentDate: Timestamp.fromDate(appointmentData.appointmentDate),
+        date: Timestamp.fromDate(appointmentData.date),
         createdAt: Timestamp.now(),
         updatedAt: Timestamp.now()
       });
@@ -421,7 +421,7 @@ export class PatientFirebaseService {
     const appointmentsQuery = query(
       collection(db, 'appointments'),
       where('patientId', '==', patientId),
-      orderBy('appointmentDate', 'desc')
+      orderBy('date', 'desc')
     );
 
     return onSnapshot(appointmentsQuery, (snapshot) => {
@@ -430,7 +430,7 @@ export class PatientFirebaseService {
         return {
           id: doc.id,
           ...data,
-          date: data.appointmentDate ? data.appointmentDate.toDate() : new Date(),
+          date: data.date ? data.date.toDate() : new Date(),
         };
       }) as Appointment[];
       
@@ -440,40 +440,39 @@ export class PatientFirebaseService {
 
   // Messaging Services (reuse from FirebaseService)
   static async sendMessage(conversationId: string, from: string, to: string, content: string, type: string = 'text') {
-    const messagesRef = collection(db, 'notifications');
-    await addDoc(messagesRef, {
-      conversationId,
-      from,
-      to,
-      content,
-      type,
-      timestamp: new Date(),
-      seenBy: [from],
-    });
-  }
-
-  static async deleteMessagesForConversation(conversationId: string): Promise<void> {
     try {
       const messagesRef = collection(db, 'notifications');
-      const q = query(messagesRef, where('conversationId', '==', conversationId));
-      const snapshot = await getDocs(q);
-      const batch = (await import('firebase/firestore')).writeBatch(db);
-      snapshot.forEach(docSnap => {
-        batch.delete(docSnap.ref);
+      await addDoc(messagesRef, {
+        conversationId,
+        from,
+        to,
+        content,
+        type,
+        timestamp: Timestamp.now(),
+        seenBy: [from],
       });
-      await batch.commit();
     } catch (error) {
-      console.error('Error deleting messages for conversation:', error);
+      console.error('Error sending message:', error);
+      throw error;
     }
   }
 
   static subscribeToMessages(conversationId: string, callback: (messages: any[]) => void) {
-    const messagesRef = collection(db, 'notifications');
-    const q = query(messagesRef, where('conversationId', '==', conversationId), orderBy('timestamp'));
-    return onSnapshot(q, (snapshot) => {
-      const messages = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      callback(messages);
-    });
+    try {
+      const messagesRef = collection(db, 'notifications');
+      const q = query(messagesRef, where('conversationId', '==', conversationId), orderBy('timestamp'));
+      return onSnapshot(q, (snapshot) => {
+        const messages = snapshot.docs.map(doc => ({ 
+          id: doc.id, 
+          ...doc.data(),
+          timestamp: doc.data().timestamp?.toDate ? doc.data().timestamp.toDate() : new Date()
+        }));
+        callback(messages);
+      });
+    } catch (error) {
+      console.error('Error subscribing to messages:', error);
+      return () => {};
+    }
   }
 
   // Download PDF from base64

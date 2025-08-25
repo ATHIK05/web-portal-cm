@@ -1025,10 +1025,10 @@ export class FirebaseService {
   static async bookAppointmentAtomic(appointment: any): Promise<boolean> {
     try {
       // Defensive: check for undefined query fields
-      if (!appointment.doctorId || !appointment.appointmentDate || !appointment.timeSlot) {
+      if (!appointment.doctorId || !appointment.date || !appointment.timeSlot) {
         console.error('Missing required appointment fields for query:', {
           doctorId: appointment.doctorId,
-          appointmentDate: appointment.appointmentDate,
+          date: appointment.date,
           timeSlot: appointment.timeSlot,
         });
         throw new Error('Missing required appointment fields for query');
@@ -1037,7 +1037,7 @@ export class FirebaseService {
       const q = query(
         appointmentsRef,
         where('doctorId', '==', appointment.doctorId),
-        where('appointmentDate', '==', appointment.appointmentDate),
+        where('date', '==', Timestamp.fromDate(appointment.date)),
         where('timeSlot', '==', appointment.timeSlot)
       );
       const snapshot = await getDocs(q);
@@ -1050,7 +1050,12 @@ export class FirebaseService {
         const qSnap = await getDocs(q);
         if (!qSnap.empty) throw new Error('Slot already booked');
         const newDoc = doc(appointmentsRef);
-        transaction.set(newDoc, appointment);
+        transaction.set(newDoc, {
+          ...appointment,
+          date: Timestamp.fromDate(appointment.date),
+          createdAt: Timestamp.now(),
+          updatedAt: Timestamp.now()
+        });
       });
       return true;
     } catch (error) {
@@ -1136,25 +1141,39 @@ export class FirebaseService {
 
   // Messaging/Notifications
   static async sendMessage(conversationId: string, from: string, to: string, content: string, type: string = 'text') {
-    const messagesRef = collection(db, 'notifications');
-    await addDoc(messagesRef, {
-      conversationId,
-      from,
-      to,
-      content,
-      type,
-      timestamp: new Date(),
-      seenBy: [from],
-    });
+    try {
+      const messagesRef = collection(db, 'notifications');
+      await addDoc(messagesRef, {
+        conversationId,
+        from,
+        to,
+        content,
+        type,
+        timestamp: Timestamp.now(),
+        seenBy: [from],
+      });
+    } catch (error) {
+      console.error('Error sending message:', error);
+      throw error;
+    }
   }
 
   static subscribeToMessages(conversationId: string, callback: (messages: any[]) => void) {
-    const messagesRef = collection(db, 'notifications');
-    const q = query(messagesRef, where('conversationId', '==', conversationId), orderBy('timestamp'));
-    return onSnapshot(q, (snapshot) => {
-      const messages = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      callback(messages);
-    });
+    try {
+      const messagesRef = collection(db, 'notifications');
+      const q = query(messagesRef, where('conversationId', '==', conversationId), orderBy('timestamp'));
+      return onSnapshot(q, (snapshot) => {
+        const messages = snapshot.docs.map(doc => ({ 
+          id: doc.id, 
+          ...doc.data(),
+          timestamp: doc.data().timestamp?.toDate ? doc.data().timestamp.toDate() : new Date()
+        }));
+        callback(messages);
+      });
+    } catch (error) {
+      console.error('Error subscribing to messages:', error);
+      return () => {};
+    }
   }
 
   static async markMessageSeen(messageId: string, userId: string) {
