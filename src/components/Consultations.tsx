@@ -1,1161 +1,815 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   FileText, 
-  Plus, 
   Search, 
-  Calendar, 
-  User, 
-  Pill,
-  Receipt,
-  Download,
-  Eye,
-  Loader,
-  Save,
-  X,
+  Filter, 
+  Plus, 
+  Eye, 
+  Edit, 
+  Trash2,
+  User,
+  Calendar,
   Clock,
   Stethoscope,
-  Heart,
-  Activity
+  Pill,
+  CreditCard,
+  Save,
+  X,
+  Loader,
+  CheckCircle
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
-import { useTheme } from '../contexts/ThemeContext';
 import { FirebaseService } from '../services/firebaseService';
+import { useTheme } from '../contexts/ThemeContext';
 
-// Premium Prescription Modal Component
-interface PrescriptionModalProps {
-  prescriptionData: any;
-  updateMedicine: (id: string, field: string, value: string) => void;
-  removeMedicine: (id: string) => void;
-  addMedicine: () => void;
-  setShowPrescriptionModal: (show: boolean) => void;
-  setMessage: (msg: string) => void;
-  setPrescriptionData: React.Dispatch<React.SetStateAction<any>>;
-  actionLoading: boolean;
-  handleCreatePrescription: () => void;
-  patients: Map<string, any>;
-  selectedAppointment: any;
-  theme: string;
-  message: string;
-}
+const Consultations: React.FC = () => {
+  const { user } = useAuth();
+  const { theme } = useTheme();
+  const [consultations, setConsultations] = useState<any[]>([]);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filterStatus, setFilterStatus] = useState('all');
+  const [filterDate, setFilterDate] = useState('');
+  const [selectedConsultation, setSelectedConsultation] = useState<any>(null);
+  const [showModal, setShowModal] = useState(false);
+  const [modalMode, setModalMode] = useState<'view' | 'edit' | 'create'>('view');
+  const [loading, setLoading] = useState(false);
+  const [consultationsLoading, setConsultationsLoading] = useState(true);
+  const [message, setMessage] = useState('');
+  const [formData, setFormData] = useState({
+    patientName: '',
+    patientAge: '',
+    patientGender: 'male',
+    consultationDate: '',
+    consultationType: 'general',
+    symptoms: '',
+    diagnosis: '',
+    treatment: '',
+    medicines: [{ name: '', dosage: '', duration: '', frequency: '', foodTiming: 'after' }],
+    instructions: '',
+    nextAppointment: '',
+    consultationFee: 500,
+    testCharges: 0,
+    medicineCharges: 0,
+    otherCharges: 0,
+    notes: ''
+  });
 
-const PremiumPrescriptionModal = React.memo(function PremiumPrescriptionModal({
-  prescriptionData,
-  updateMedicine,
-  removeMedicine,
-  addMedicine,
-  setShowPrescriptionModal,
-  setMessage,
-  setPrescriptionData,
-  actionLoading,
-  handleCreatePrescription,
-  patients,
-  selectedAppointment,
-  theme,
-  message
-}: PrescriptionModalProps) {
-  const patient = patients.get(selectedAppointment?.patientId);
-  const patientName = patient ? `${patient.firstName} ${patient.lastName}` : 'Unknown Patient';
+  useEffect(() => {
+    if (user) {
+      fetchConsultations();
+    }
+  }, [user]);
 
-  return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="bg-white/95 backdrop-blur-xl rounded-2xl shadow-2xl w-full max-w-4xl max-h-[85vh] overflow-hidden border border-white/20">
-        {/* Header */}
-        <div className="bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-600 p-6 text-white">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-3">
-              <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center">
-                <Pill size={24} className="text-white" />
+  const fetchConsultations = async () => {
+    if (!user) return;
+    
+    setConsultationsLoading(true);
+    try {
+      const consultationsData = await FirebaseService.getConsultations(user.uid);
+      setConsultations(consultationsData);
+    } catch (error) {
+      console.error('Error fetching consultations:', error);
+      setMessage('Error loading consultations data');
+    } finally {
+      setConsultationsLoading(false);
+    }
+  };
+
+  const filteredConsultations = consultations.filter(consultation => {
+    const matchesSearch = consultation.patientName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         consultation.diagnosis?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         consultation.symptoms?.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    const matchesStatus = filterStatus === 'all' || consultation.status === filterStatus;
+    
+    const matchesDate = !filterDate || 
+                       new Date(consultation.consultationDate).toDateString() === new Date(filterDate).toDateString();
+    
+    return matchesSearch && matchesStatus && matchesDate;
+  });
+
+  const handleCreateConsultation = () => {
+    setSelectedConsultation(null);
+    setFormData({
+      patientName: '',
+      patientAge: '',
+      patientGender: 'male',
+      consultationDate: new Date().toISOString().split('T')[0],
+      consultationType: 'general',
+      symptoms: '',
+      diagnosis: '',
+      treatment: '',
+      medicines: [{ name: '', dosage: '', duration: '', frequency: '', foodTiming: 'after' }],
+      instructions: '',
+      nextAppointment: '',
+      consultationFee: 500,
+      testCharges: 0,
+      medicineCharges: 0,
+      otherCharges: 0,
+      notes: ''
+    });
+    setModalMode('create');
+    setShowModal(true);
+  };
+
+  const handleEditConsultation = (consultation: any) => {
+    setSelectedConsultation(consultation);
+    setFormData({
+      patientName: consultation.patientName || '',
+      patientAge: consultation.patientAge || '',
+      patientGender: consultation.patientGender || 'male',
+      consultationDate: consultation.consultationDate ? new Date(consultation.consultationDate).toISOString().split('T')[0] : '',
+      consultationType: consultation.consultationType || 'general',
+      symptoms: consultation.symptoms || '',
+      diagnosis: consultation.diagnosis || '',
+      treatment: consultation.treatment || '',
+      medicines: consultation.medicines || [{ name: '', dosage: '', duration: '', frequency: '', foodTiming: 'after' }],
+      instructions: consultation.instructions || '',
+      nextAppointment: consultation.nextAppointment ? new Date(consultation.nextAppointment).toISOString().split('T')[0] : '',
+      consultationFee: consultation.consultationFee || 500,
+      testCharges: consultation.testCharges || 0,
+      medicineCharges: consultation.medicineCharges || 0,
+      otherCharges: consultation.otherCharges || 0,
+      notes: consultation.notes || ''
+    });
+    setModalMode('edit');
+    setShowModal(true);
+  };
+
+  const handleViewConsultation = (consultation: any) => {
+    setSelectedConsultation(consultation);
+    setModalMode('view');
+    setShowModal(true);
+  };
+
+  const handleSaveConsultation = async () => {
+    if (!user) return;
+    
+    setLoading(true);
+    setMessage('');
+
+    try {
+      const consultationData = {
+        ...formData,
+        doctorId: user.uid,
+        consultationDate: new Date(formData.consultationDate),
+        nextAppointment: formData.nextAppointment ? new Date(formData.nextAppointment) : null,
+        total: formData.consultationFee + formData.testCharges + formData.medicineCharges + formData.otherCharges,
+        status: 'completed'
+      };
+
+      let success;
+      if (modalMode === 'create') {
+        success = await FirebaseService.addConsultation(consultationData);
+      } else {
+        success = await FirebaseService.updateConsultation(selectedConsultation.id, consultationData);
+      }
+
+      if (success) {
+        setMessage(`Consultation ${modalMode === 'create' ? 'created' : 'updated'} successfully!`);
+        setShowModal(false);
+        fetchConsultations();
+      } else {
+        setMessage(`Failed to ${modalMode === 'create' ? 'create' : 'update'} consultation`);
+      }
+    } catch (error) {
+      console.error('Error saving consultation:', error);
+      setMessage('An error occurred while saving consultation');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeleteConsultation = async (consultationId: string) => {
+    if (!confirm('Are you sure you want to delete this consultation?')) return;
+    
+    setLoading(true);
+    try {
+      const success = await FirebaseService.deleteConsultation(consultationId);
+      if (success) {
+        setMessage('Consultation deleted successfully');
+        fetchConsultations();
+      } else {
+        setMessage('Failed to delete consultation');
+      }
+    } catch (error) {
+      console.error('Error deleting consultation:', error);
+      setMessage('An error occurred while deleting consultation');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const addMedicine = () => {
+    setFormData(prev => ({
+      ...prev,
+      medicines: [...prev.medicines, { name: '', dosage: '', duration: '', frequency: '', foodTiming: 'after' }]
+    }));
+  };
+
+  const removeMedicine = (index: number) => {
+    setFormData(prev => ({
+      ...prev,
+      medicines: prev.medicines.filter((_, i) => i !== index)
+    }));
+  };
+
+  const updateMedicine = (index: number, field: string, value: string) => {
+    setFormData(prev => ({
+      ...prev,
+      medicines: prev.medicines.map((med, i) => 
+        i === index ? { ...med, [field]: value } : med
+      )
+    }));
+  };
+
+  const ConsultationModal = () => (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div className="bg-white rounded-lg p-6 w-full max-w-4xl m-4 max-h-[90vh] overflow-y-auto">
+        <div className="flex justify-between items-center mb-4">
+          <h3 className="text-lg font-semibold">
+            {modalMode === 'create' ? 'New Consultation' : 
+             modalMode === 'edit' ? 'Edit Consultation' : 'Consultation Details'}
+          </h3>
+          <button
+            onClick={() => setShowModal(false)}
+            className="text-gray-400 hover:text-gray-600"
+          >
+            <X size={24} />
+          </button>
+        </div>
+
+        <div className="space-y-6">
+          {/* Patient Information */}
+          <div className="bg-gray-50 p-4 rounded-lg">
+            <h4 className="font-medium text-gray-900 mb-3">Patient Information</h4>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Patient Name</label>
+                {modalMode === 'view' ? (
+                  <p className="text-gray-900">{selectedConsultation?.patientName}</p>
+                ) : (
+                  <input
+                    type="text"
+                    value={formData.patientName}
+                    onChange={(e) => setFormData(prev => ({ ...prev, patientName: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="Enter patient name"
+                  />
+                )}
               </div>
               <div>
-                <h3 className="text-xl font-bold">Create Prescription</h3>
-                <p className="text-blue-100 text-sm">Patient: {patientName}</p>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Age</label>
+                {modalMode === 'view' ? (
+                  <p className="text-gray-900">{selectedConsultation?.patientAge}</p>
+                ) : (
+                  <input
+                    type="number"
+                    value={formData.patientAge}
+                    onChange={(e) => setFormData(prev => ({ ...prev, patientAge: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="Age"
+                  />
+                )}
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Gender</label>
+                {modalMode === 'view' ? (
+                  <p className="text-gray-900 capitalize">{selectedConsultation?.patientGender}</p>
+                ) : (
+                  <select
+                    value={formData.patientGender}
+                    onChange={(e) => setFormData(prev => ({ ...prev, patientGender: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="male">Male</option>
+                    <option value="female">Female</option>
+                    <option value="other">Other</option>
+                  </select>
+                )}
               </div>
             </div>
-            <button
-              onClick={() => {
-                setShowPrescriptionModal(false);
-                setMessage('');
-              }}
-              className="w-10 h-10 bg-white/20 hover:bg-white/30 rounded-xl flex items-center justify-center transition-all duration-200"
-            >
-              <X size={20} />
-            </button>
+          </div>
+
+          {/* Consultation Details */}
+          <div className="bg-gray-50 p-4 rounded-lg">
+            <h4 className="font-medium text-gray-900 mb-3">Consultation Details</h4>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Date</label>
+                {modalMode === 'view' ? (
+                  <p className="text-gray-900">{new Date(selectedConsultation?.consultationDate).toLocaleDateString()}</p>
+                ) : (
+                  <input
+                    type="date"
+                    value={formData.consultationDate}
+                    onChange={(e) => setFormData(prev => ({ ...prev, consultationDate: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                )}
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Type</label>
+                {modalMode === 'view' ? (
+                  <p className="text-gray-900 capitalize">{selectedConsultation?.consultationType}</p>
+                ) : (
+                  <select
+                    value={formData.consultationType}
+                    onChange={(e) => setFormData(prev => ({ ...prev, consultationType: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="general">General</option>
+                    <option value="followup">Follow-up</option>
+                    <option value="emergency">Emergency</option>
+                    <option value="routine">Routine Check-up</option>
+                  </select>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Medical Information */}
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Symptoms</label>
+              {modalMode === 'view' ? (
+                <p className="text-gray-900">{selectedConsultation?.symptoms}</p>
+              ) : (
+                <textarea
+                  value={formData.symptoms}
+                  onChange={(e) => setFormData(prev => ({ ...prev, symptoms: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  rows={3}
+                  placeholder="Describe symptoms..."
+                />
+              )}
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Diagnosis</label>
+              {modalMode === 'view' ? (
+                <p className="text-gray-900">{selectedConsultation?.diagnosis}</p>
+              ) : (
+                <textarea
+                  value={formData.diagnosis}
+                  onChange={(e) => setFormData(prev => ({ ...prev, diagnosis: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  rows={3}
+                  placeholder="Enter diagnosis..."
+                />
+              )}
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Treatment</label>
+              {modalMode === 'view' ? (
+                <p className="text-gray-900">{selectedConsultation?.treatment}</p>
+              ) : (
+                <textarea
+                  value={formData.treatment}
+                  onChange={(e) => setFormData(prev => ({ ...prev, treatment: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  rows={3}
+                  placeholder="Describe treatment plan..."
+                />
+              )}
+            </div>
+          </div>
+
+          {/* Medicines */}
+          <div>
+            <div className="flex justify-between items-center mb-3">
+              <h4 className="font-medium text-gray-900">Medicines</h4>
+              {modalMode !== 'view' && (
+                <button
+                  onClick={addMedicine}
+                  className="px-3 py-1 bg-blue-600 text-white rounded text-sm hover:bg-blue-700"
+                >
+                  <Plus size={16} className="inline mr-1" />
+                  Add Medicine
+                </button>
+              )}
+            </div>
+            
+            <div className="space-y-3">
+              {(modalMode === 'view' ? selectedConsultation?.medicines || [] : formData.medicines).map((medicine: any, index: number) => (
+                <div key={index} className="bg-gray-50 p-3 rounded-lg">
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-1">Medicine Name</label>
+                      {modalMode === 'view' ? (
+                        <p className="text-sm text-gray-900">{medicine.name}</p>
+                      ) : (
+                        <input
+                          type="text"
+                          value={medicine.name}
+                          onChange={(e) => updateMedicine(index, 'name', e.target.value)}
+                          className="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+                          placeholder="Medicine name"
+                        />
+                      )}
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-1">Dosage</label>
+                      {modalMode === 'view' ? (
+                        <p className="text-sm text-gray-900">{medicine.dosage}</p>
+                      ) : (
+                        <input
+                          type="text"
+                          value={medicine.dosage}
+                          onChange={(e) => updateMedicine(index, 'dosage', e.target.value)}
+                          className="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+                          placeholder="e.g., 500mg"
+                        />
+                      )}
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-1">Duration</label>
+                      {modalMode === 'view' ? (
+                        <p className="text-sm text-gray-900">{medicine.duration}</p>
+                      ) : (
+                        <input
+                          type="text"
+                          value={medicine.duration}
+                          onChange={(e) => updateMedicine(index, 'duration', e.target.value)}
+                          className="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+                          placeholder="e.g., 7 days"
+                        />
+                      )}
+                    </div>
+                    <div className="flex items-end">
+                      {modalMode === 'view' ? (
+                        <div>
+                          <label className="block text-xs font-medium text-gray-700 mb-1">Frequency</label>
+                          <p className="text-sm text-gray-900">{medicine.frequency}</p>
+                        </div>
+                      ) : (
+                        <div className="flex-1">
+                          <label className="block text-xs font-medium text-gray-700 mb-1">Frequency</label>
+                          <input
+                            type="text"
+                            value={medicine.frequency}
+                            onChange={(e) => updateMedicine(index, 'frequency', e.target.value)}
+                            className="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+                            placeholder="e.g., 2x daily"
+                          />
+                        </div>
+                      )}
+                      {modalMode !== 'view' && formData.medicines.length > 1 && (
+                        <button
+                          onClick={() => removeMedicine(index)}
+                          className="ml-2 p-1 text-red-600 hover:text-red-800"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Instructions and Notes */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Instructions</label>
+              {modalMode === 'view' ? (
+                <p className="text-gray-900">{selectedConsultation?.instructions}</p>
+              ) : (
+                <textarea
+                  value={formData.instructions}
+                  onChange={(e) => setFormData(prev => ({ ...prev, instructions: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  rows={3}
+                  placeholder="Special instructions..."
+                />
+              )}
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
+              {modalMode === 'view' ? (
+                <p className="text-gray-900">{selectedConsultation?.notes}</p>
+              ) : (
+                <textarea
+                  value={formData.notes}
+                  onChange={(e) => setFormData(prev => ({ ...prev, notes: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  rows={3}
+                  placeholder="Additional notes..."
+                />
+              )}
+            </div>
+          </div>
+
+          {/* Billing Information */}
+          <div className="bg-gray-50 p-4 rounded-lg">
+            <h4 className="font-medium text-gray-900 mb-3">Billing Information</h4>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Consultation Fee</label>
+                {modalMode === 'view' ? (
+                  <p className="text-gray-900">₹{selectedConsultation?.consultationFee}</p>
+                ) : (
+                  <input
+                    type="number"
+                    value={formData.consultationFee}
+                    onChange={(e) => setFormData(prev => ({ ...prev, consultationFee: parseInt(e.target.value) || 0 }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                )}
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Test Charges</label>
+                {modalMode === 'view' ? (
+                  <p className="text-gray-900">₹{selectedConsultation?.testCharges}</p>
+                ) : (
+                  <input
+                    type="number"
+                    value={formData.testCharges}
+                    onChange={(e) => setFormData(prev => ({ ...prev, testCharges: parseInt(e.target.value) || 0 }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                )}
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Medicine Charges</label>
+                {modalMode === 'view' ? (
+                  <p className="text-gray-900">₹{selectedConsultation?.medicineCharges}</p>
+                ) : (
+                  <input
+                    type="number"
+                    value={formData.medicineCharges}
+                    onChange={(e) => setFormData(prev => ({ ...prev, medicineCharges: parseInt(e.target.value) || 0 }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                )}
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Other Charges</label>
+                {modalMode === 'view' ? (
+                  <p className="text-gray-900">₹{selectedConsultation?.otherCharges}</p>
+                ) : (
+                  <input
+                    type="number"
+                    value={formData.otherCharges}
+                    onChange={(e) => setFormData(prev => ({ ...prev, otherCharges: parseInt(e.target.value) || 0 }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                )}
+              </div>
+            </div>
+            <div className="mt-3 pt-3 border-t border-gray-200">
+              <div className="flex justify-between items-center">
+                <span className="font-medium text-gray-900">Total Amount:</span>
+                <span className="text-xl font-bold text-green-600">
+                  ₹{modalMode === 'view' 
+                    ? selectedConsultation?.total 
+                    : (formData.consultationFee + formData.testCharges + formData.medicineCharges + formData.otherCharges)
+                  }
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Next Appointment */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Next Appointment</label>
+            {modalMode === 'view' ? (
+              <p className="text-gray-900">
+                {selectedConsultation?.nextAppointment 
+                  ? new Date(selectedConsultation.nextAppointment).toLocaleDateString()
+                  : 'Not scheduled'
+                }
+              </p>
+            ) : (
+              <input
+                type="date"
+                value={formData.nextAppointment}
+                onChange={(e) => setFormData(prev => ({ ...prev, nextAppointment: e.target.value }))}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            )}
           </div>
         </div>
 
-        <div className="p-6 overflow-y-auto max-h-[calc(85vh-140px)]">
-          {message && (
-            <div className={`p-4 rounded-xl mb-6 border ${
-              message.includes('successfully') 
-                ? 'bg-green-50 text-green-800 border-green-200' 
-                : 'bg-red-50 text-red-800 border-red-200'
-            }`}>
-              {message}
-            </div>
+        {/* Modal Actions */}
+        <div className="flex justify-end space-x-3 mt-6 pt-4 border-t border-gray-200">
+          <button
+            onClick={() => setShowModal(false)}
+            className="px-4 py-2 text-gray-600 hover:text-gray-800"
+            disabled={loading}
+          >
+            {modalMode === 'view' ? 'Close' : 'Cancel'}
+          </button>
+          {modalMode !== 'view' && (
+            <button
+              onClick={handleSaveConsultation}
+              disabled={loading}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center space-x-2"
+            >
+              {loading && <Loader className="animate-spin" size={16} />}
+              <Save size={16} />
+              <span>{modalMode === 'create' ? 'Create' : 'Update'} Consultation</span>
+            </button>
           )}
+        </div>
+      </div>
+    </div>
+  );
 
-          {/* Doctor Header Section */}
-          <div className="bg-gradient-to-r from-gray-50 to-blue-50 rounded-xl p-4 mb-6 border border-gray-200">
-            <div className="grid grid-cols-2 gap-6">
-              <div>
-                <h4 className="font-bold text-gray-900 text-lg">Dr. A. Atheeb</h4>
-                <p className="text-sm text-gray-600">M.D.(GEN.MED), D.M.(CARDIO)</p>
-                <p className="text-sm text-gray-600">Interventional Cardiologist Reg. No. 54501</p>
-                <div className="mt-2 text-xs text-gray-500">
-                  <p>Consultations Hours: 10.00 a.m to 1.00 p.m</p>
-                  <p className="ml-16">6.00 p.m to 9.00 p.m</p>
-                  <p>Sunday: 10.00 a.m to 12.00 Noon</p>
-                </div>
-              </div>
-              <div className="text-right">
-                <h4 className="font-bold text-gray-900 text-lg">K.B.N. Nursing Home</h4>
-                <p className="text-sm text-gray-600">K.B.N. HEART CARE UNIT</p>
-                <p className="text-xs text-gray-500">49/1, Mosikeeranan Street,</p>
-                <p className="text-xs text-gray-500">(Krishna Theatre Road) Erode - 638 003</p>
-                <p className="text-xs text-gray-500">Phone: 0424 - 2225599, 2210576, 2224477</p>
-                <p className="text-xs text-gray-500">Mob: 96888 83668</p>
-              </div>
-            </div>
-          </div>
+  return (
+    <div className="space-y-6">
+      <div className="flex justify-between items-center">
+        <div>
+          <h2 className="text-3xl font-bold text-gray-900">Consultations</h2>
+          <p className="text-gray-600 mt-1">Manage patient consultations and medical records</p>
+        </div>
+        <button
+          onClick={handleCreateConsultation}
+          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center space-x-2"
+        >
+          <Plus size={16} />
+          <span>New Consultation</span>
+        </button>
+      </div>
 
-          {/* Patient Info */}
-          <div className="grid grid-cols-2 gap-4 mb-6">
-            <div className="bg-white rounded-xl border border-gray-200 p-4">
-              <label className="block text-sm font-medium text-gray-700 mb-2">Patient's Name</label>
+      {message && (
+        <div className={`p-4 rounded-lg ${
+          message.includes('successfully') ? 'bg-green-50 text-green-800 border border-green-200' : 
+          'bg-red-50 text-red-800 border border-red-200'
+        }`}>
+          {message}
+        </div>
+      )}
+
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200">
+        <div className="p-6 border-b border-gray-200">
+          <div className="flex items-center justify-between space-x-4">
+            <div className="relative flex-1 max-w-md">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
               <input
                 type="text"
-                value={patientName}
-                readOnly
-                className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-gray-900 font-medium"
+                placeholder="Search consultations..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
-            <div className="bg-white rounded-xl border border-gray-200 p-4">
-              <label className="block text-sm font-medium text-gray-700 mb-2">Date</label>
+            
+            <div className="flex items-center space-x-3">
+              <div className="flex items-center space-x-2">
+                <Filter className="text-gray-400" size={20} />
+                <select
+                  value={filterStatus}
+                  onChange={(e) => setFilterStatus(e.target.value)}
+                  className={`px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                    theme === 'dark' ? 'bg-gray-800 text-white' : ''
+                  }`}
+                >
+                  <option value="all">All Status</option>
+                  <option value="completed">Completed</option>
+                  <option value="pending">Pending</option>
+                  <option value="cancelled">Cancelled</option>
+                </select>
+              </div>
+              
               <input
-                type="text"
-                value={new Date().toLocaleDateString('en-GB')}
-                readOnly
-                className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-gray-900 font-medium"
+                type="date"
+                value={filterDate}
+                onChange={(e) => setFilterDate(e.target.value)}
+                className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
           </div>
+        </div>
 
-          {/* Prescription Symbol */}
-          <div className="text-center mb-6">
-            <div className="text-6xl font-serif text-blue-600">℞</div>
-          </div>
-
-          {/* Prescription Table */}
-          <div className="bg-white rounded-xl border-2 border-gray-200 overflow-hidden mb-6">
+        <div className="overflow-x-auto">
+          {consultationsLoading ? (
+            <div className="p-8 text-center">
+              <Loader className="animate-spin mx-auto mb-4" size={32} />
+              <p className="text-gray-500">Loading consultations...</p>
+            </div>
+          ) : filteredConsultations.length === 0 ? (
+            <div className="p-8 text-center">
+              <FileText className="mx-auto h-12 w-12 text-gray-400 mb-4" />
+              <p className="text-gray-500">
+                {consultations.length === 0 ? 'No consultations found' : 'No consultations match your search criteria'}
+              </p>
+              {consultations.length === 0 && (
+                <button
+                  onClick={handleCreateConsultation}
+                  className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center space-x-2 mx-auto"
+                >
+                  <Plus size={16} />
+                  <span>Create Your First Consultation</span>
+                </button>
+              )}
+            </div>
+          ) : (
             <table className="w-full">
-              <thead>
-                <tr className="bg-gradient-to-r from-blue-50 to-indigo-50">
-                  <th className="border border-gray-300 px-3 py-3 text-center text-sm font-bold text-gray-800">
-                    <div>உணவு</div>
-                    <div className="text-xs">முன் / பின்</div>
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Patient
                   </th>
-                  <th className="border border-gray-300 px-3 py-3 text-center text-sm font-bold text-gray-800">காலை</th>
-                  <th className="border border-gray-300 px-3 py-3 text-center text-sm font-bold text-gray-800">மதியம்</th>
-                  <th className="border border-gray-300 px-3 py-3 text-center text-sm font-bold text-gray-800">இரவு</th>
-                  <th className="border border-gray-300 px-4 py-3 text-center text-sm font-bold text-gray-800">Medicine Details</th>
-                  <th className="border border-gray-300 px-2 py-3 text-center text-sm font-bold text-gray-800">Action</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Date
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Diagnosis
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Amount
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Status
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Actions
+                  </th>
                 </tr>
               </thead>
-              <tbody>
-                {prescriptionData.medicines.map((medicine: any, index: number) => (
-                  <tr key={medicine.id} className="hover:bg-blue-50/50 transition-colors">
-                    <td className="border border-gray-300 px-2 py-3 text-center">
-                      <select
-                        value={medicine.foodTiming || 'before'}
-                        onChange={(e) => updateMedicine(medicine.id, 'foodTiming', e.target.value)}
-                        className="w-full text-center text-sm border-0 bg-transparent focus:ring-2 focus:ring-blue-500 rounded"
-                      >
-                        <option value="before">முன்</option>
-                        <option value="after">பின்</option>
-                      </select>
-                    </td>
-                    <td className="border border-gray-300 px-2 py-3 text-center">
-                      <input
-                        type="text"
-                        value={medicine.morning || '1'}
-                        onChange={(e) => updateMedicine(medicine.id, 'morning', e.target.value)}
-                        className="w-full text-center text-sm border-0 bg-transparent focus:ring-2 focus:ring-blue-500 rounded"
-                        placeholder="1"
-                      />
-                    </td>
-                    <td className="border border-gray-300 px-2 py-3 text-center">
-                      <input
-                        type="text"
-                        value={medicine.afternoon || '1'}
-                        onChange={(e) => updateMedicine(medicine.id, 'afternoon', e.target.value)}
-                        className="w-full text-center text-sm border-0 bg-transparent focus:ring-2 focus:ring-blue-500 rounded"
-                        placeholder="1"
-                      />
-                    </td>
-                    <td className="border border-gray-300 px-2 py-3 text-center">
-                      <input
-                        type="text"
-                        value={medicine.night || '1'}
-                        onChange={(e) => updateMedicine(medicine.id, 'night', e.target.value)}
-                        className="w-full text-center text-sm border-0 bg-transparent focus:ring-2 focus:ring-blue-500 rounded"
-                        placeholder="1"
-                      />
-                    </td>
-                    <td className="border border-gray-300 px-3 py-3">
-                      <div className="space-y-2">
-                        <input
-                          type="text"
-                          placeholder="Medicine name (e.g., Paracetamol)"
-                          value={medicine.name}
-                          onChange={(e) => updateMedicine(medicine.id, 'name', e.target.value)}
-                          className="w-full px-2 py-1 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-blue-500"
-                        />
-                        <div className="grid grid-cols-2 gap-2">
-                          <input
-                            type="text"
-                            placeholder="Dosage (e.g., 500mg)"
-                            value={medicine.dosage}
-                            onChange={(e) => updateMedicine(medicine.id, 'dosage', e.target.value)}
-                            className="w-full px-2 py-1 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-blue-500"
-                          />
-                          <input
-                            type="text"
-                            placeholder="Duration (e.g., 5 days)"
-                            value={medicine.duration}
-                            onChange={(e) => updateMedicine(medicine.id, 'duration', e.target.value)}
-                            className="w-full px-2 py-1 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-blue-500"
-                          />
+              <tbody className="bg-white divide-y divide-gray-200">
+                {filteredConsultations.map((consultation) => (
+                  <tr key={consultation.id} className={`
+                    ${theme === 'dark' ? 'bg-gray-900 hover:bg-gray-800' : 'hover:bg-gray-50'}
+                  `}>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="flex items-center">
+                        <div className={`w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center ${theme === 'dark' ? 'bg-gray-700' : ''}`}> 
+                          <User size={16} className={theme === 'dark' ? 'text-gray-300' : 'text-gray-500'} />
+                        </div>
+                        <div className="ml-4">
+                          <div className={`text-sm font-medium transition-colors duration-150 cursor-pointer ${theme === 'dark' ? 'text-white' : 'text-gray-900 hover:text-white'}`}> 
+                            {consultation.patientName}
+                          </div>
+                          <div className={`text-sm ${theme === 'dark' ? 'text-gray-300' : 'text-gray-500'}`}> 
+                            {consultation.patientAge} years, {consultation.patientGender}
+                          </div>
                         </div>
                       </div>
                     </td>
-                    <td className="border border-gray-300 px-2 py-3 text-center">
-                      {prescriptionData.medicines.length > 1 && (
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className={`text-sm ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
+                        {new Date(consultation.consultationDate).toLocaleDateString()}
+                      </div>
+                      <div className={`text-sm ${theme === 'dark' ? 'text-gray-300' : 'text-gray-500'}`}>
+                        {consultation.consultationType}
+                      </div>
+                    </td>
+                    <td className={`px-6 py-4 whitespace-nowrap text-sm ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
+                      {consultation.diagnosis || 'Not specified'}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className={`text-sm font-medium ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
+                        ₹{consultation.total || 0}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="flex items-center space-x-2">
+                        <CheckCircle size={16} className="text-green-600" />
+                        <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
+                          {consultation.status || 'completed'}
+                        </span>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                      <div className="flex space-x-2">
                         <button
-                          onClick={() => removeMedicine(medicine.id)}
-                          className="w-8 h-8 bg-red-100 hover:bg-red-200 text-red-600 rounded-lg flex items-center justify-center transition-all duration-200 hover:scale-110"
-                          title="Remove medicine"
+                          title="View Details"
+                          onClick={() => handleViewConsultation(consultation)}
+                          className="text-blue-600 hover:text-blue-900 p-1 rounded"
                         >
-                          <X size={14} />
+                          <Eye size={16} />
                         </button>
-                      )}
+                        
+                        <button
+                          title="Edit Consultation"
+                          onClick={() => handleEditConsultation(consultation)}
+                          className="text-green-600 hover:text-green-900 p-1 rounded"
+                        >
+                          <Edit size={16} />
+                        </button>
+                        
+                        <button
+                          title="Delete Consultation"
+                          onClick={() => handleDeleteConsultation(consultation.id)}
+                          className="text-red-600 hover:text-red-900 p-1 rounded"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
-            
-            <div className="p-4 bg-gradient-to-r from-blue-50 to-indigo-50 border-t border-gray-200">
-              <button
-                onClick={addMedicine}
-                className="flex items-center space-x-2 text-blue-600 hover:text-blue-800 font-medium transition-all duration-200 hover:scale-105"
-              >
-                <Plus size={16} />
-                <span>Add Medicine Row</span>
-              </button>
-            </div>
-          </div>
-
-          {/* Other Instructions */}
-          <div className="bg-white rounded-xl border border-gray-200 p-4 mb-6">
-            <label className="block text-sm font-bold text-gray-800 mb-3">Other Instructions</label>
-            <textarea
-              rows={4}
-              value={prescriptionData.instructions}
-              onChange={(e) => setPrescriptionData((prev: any) => ({ ...prev, instructions: e.target.value }))}
-              className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none"
-              placeholder="Enter special instructions for the patient..."
-            />
-          </div>
-
-          {/* Next Appointment */}
-          <div className="bg-white rounded-xl border border-gray-200 p-4 mb-6">
-            <label className="block text-sm font-bold text-gray-800 mb-3">Next Appointment Date</label>
-            <input
-              type="date"
-              value={prescriptionData.nextAppointment || ''}
-              onChange={(e) => setPrescriptionData((prev: any) => ({ ...prev, nextAppointment: e.target.value }))}
-              className="px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            />
-          </div>
-
-          {/* Tamil Hospital Name */}
-          <div className="text-center mb-6">
-            <p className="text-lg font-bold text-gray-800">K.B.N. மருத்துவமனை</p>
-          </div>
-        </div>
-
-        {/* Footer Actions */}
-        <div className="bg-gradient-to-r from-gray-50 to-blue-50 px-6 py-4 border-t border-gray-200">
-          <div className="flex justify-end space-x-3">
-            <button
-              onClick={() => {
-                setShowPrescriptionModal(false);
-                setMessage('');
-              }}
-              disabled={actionLoading}
-              className="px-6 py-3 text-gray-600 hover:text-gray-800 font-medium transition-all duration-200 hover:scale-105"
-            >
-              Cancel
-            </button>
-            <button
-              onClick={handleCreatePrescription}
-              disabled={actionLoading}
-              className="px-8 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl font-medium hover:from-blue-700 hover:to-purple-700 disabled:opacity-50 flex items-center space-x-2 transition-all duration-200 hover:scale-105 shadow-lg"
-            >
-              {actionLoading ? (
-                <Loader className="animate-spin" size={18} />
-              ) : (
-                <Save size={18} />
-              )}
-              <span>{actionLoading ? 'Generating...' : 'Save Prescription'}</span>
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-});
-
-const Consultations: React.FC = () => {
-  const { user, doctor } = useAuth();
-  const { theme } = useTheme();
-  const [selectedTab, setSelectedTab] = useState('today');
-  const [searchTerm, setSearchTerm] = useState('');
-  const [appointments, setAppointments] = useState<any[]>([]);
-  const [patients, setPatients] = useState<Map<string, any>>(new Map());
-  const [loading, setLoading] = useState(true);
-  const [showPrescriptionModal, setShowPrescriptionModal] = useState(false);
-  const [showBillModal, setShowBillModal] = useState(false);
-  const [selectedAppointment, setSelectedAppointment] = useState<any>(null);
-  const [actionLoading, setActionLoading] = useState(false);
-  const [message, setMessage] = useState('');
-
-  const [prescriptionData, setPrescriptionData] = useState({
-    medicines: [{ 
-      id: Date.now().toString() + Math.random().toString(36).slice(2), 
-      name: '', 
-      dosage: '', 
-      duration: '',
-      foodTiming: 'before',
-      morning: '1',
-      afternoon: '1',
-      night: '1'
-    }],
-    instructions: '',
-    nextAppointment: ''
-  });
-
-  const [billData, setBillData] = useState({
-    consultationFee: 500,
-    testCharges: 0,
-    otherCharges: [] as { description: string; amount: number }[],
-    total: 500,
-    breakdown: [
-      { description: 'Consultation Fee', amount: 500 },
-      { description: 'Test Charges', amount: 0 }
-    ]
-  });
-
-  // Fetch appointments and patient data
-  useEffect(() => {
-    if (!user) return;
-
-    const fetchData = async () => {
-      setLoading(true);
-      try {
-        let appointmentsData;
-        if (selectedTab === 'today') {
-          appointmentsData = await FirebaseService.getDoctorAppointments(user.uid, new Date());
-        } else {
-          appointmentsData = await FirebaseService.getDoctorAppointments(user.uid);
-          appointmentsData = appointmentsData.filter(apt => apt.status === 'completed');
-        }
-
-        setAppointments(appointmentsData);
-
-        const patientMap = new Map();
-        const uniquePatientIds = [...new Set(appointmentsData.map(apt => apt.patientId))];
-        
-        for (const patientId of uniquePatientIds) {
-          if (patientId) {
-            try {
-              const patientData = await FirebaseService.getPatientById(patientId);
-              if (patientData) {
-                patientMap.set(patientId, patientData);
-              }
-            } catch (error) {
-              console.error(`Error fetching patient ${patientId}:`, error);
-            }
-          }
-        }
-        
-        setPatients(patientMap);
-      } catch (error) {
-        console.error('Error fetching data:', error);
-        setMessage('Error loading appointments data');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchData();
-  }, [user, selectedTab]);
-
-  const updateMedicine = useCallback((id: string, field: string, value: string) => {
-    setPrescriptionData(prev => ({
-      ...prev,
-      medicines: prev.medicines.map(med => med.id === id ? { ...med, [field]: value } : med)
-    }));
-  }, []);
-
-  const removeMedicine = useCallback((id: string) => {
-    setPrescriptionData(prev => ({
-      ...prev,
-      medicines: prev.medicines.filter(med => med.id !== id)
-    }));
-  }, []);
-
-  const addMedicine = useCallback(() => {
-    setPrescriptionData(prev => ({
-      ...prev,
-      medicines: [
-        ...prev.medicines,
-        { 
-          id: Date.now().toString() + Math.random().toString(36).slice(2), 
-          name: '', 
-          dosage: '', 
-          duration: '',
-          foodTiming: 'before',
-          morning: '1',
-          afternoon: '1',
-          night: '1'
-        }
-      ]
-    }));
-  }, []);
-
-  const handleCreatePrescription = async () => {
-    if (!selectedAppointment) return;
-
-    setActionLoading(true);
-    setMessage('');
-
-    try {
-      const validMedicines = prescriptionData.medicines.filter(med => med.name.trim());
-      
-      if (validMedicines.length === 0) {
-        setMessage('Please add at least one medicine');
-        setActionLoading(false);
-        return;
-      }
-
-      const prescriptionId = await FirebaseService.createPrescription(
-        selectedAppointment.id,
-        validMedicines,
-        prescriptionData.instructions,
-        prescriptionData.nextAppointment
-      );
-
-      if (prescriptionId) {
-        await FirebaseService.updateAppointmentStatus(selectedAppointment.id, 'completed');
-        
-        setMessage('Prescription created successfully!');
-        setShowPrescriptionModal(false);
-        setPrescriptionData({
-          medicines: [{ 
-            id: Date.now().toString() + Math.random().toString(36).slice(2), 
-            name: '', 
-            dosage: '', 
-            duration: '',
-            foodTiming: 'before',
-            morning: '1',
-            afternoon: '1',
-            night: '1'
-          }],
-          instructions: '',
-          nextAppointment: ''
-        });
-        
-        const appointmentsData = selectedTab === 'today' 
-          ? await FirebaseService.getDoctorAppointments(user!.uid, new Date())
-          : await FirebaseService.getDoctorAppointments(user!.uid).then(data => 
-              data.filter(apt => apt.status === 'completed')
-            );
-        setAppointments(appointmentsData);
-      } else {
-        setMessage('Failed to create prescription');
-      }
-    } catch (error) {
-      console.error('Error creating prescription:', error);
-      setMessage('An error occurred while creating prescription');
-    } finally {
-      setActionLoading(false);
-    }
-  };
-
-  const calculateTotal = () => {
-    const otherTotal = billData.otherCharges.reduce((sum, charge) => sum + (charge.amount || 0), 0);
-    return billData.consultationFee + billData.testCharges + otherTotal;
-  };
-
-  const addOtherCharge = () => {
-    setBillData(prev => ({
-      ...prev,
-      otherCharges: [...prev.otherCharges, { description: '', amount: 0 }]
-    }));
-  };
-
-  const removeOtherCharge = (index: number) => {
-    setBillData(prev => ({
-      ...prev,
-      otherCharges: prev.otherCharges.filter((_, i) => i !== index)
-    }));
-  };
-
-  const updateOtherCharge = (index: number, field: string, value: string | number) => {
-    setBillData(prev => ({
-      ...prev,
-      otherCharges: prev.otherCharges.map((charge, i) => 
-        i === index ? { ...charge, [field]: value } : charge
-      )
-    }));
-  };
-
-  const handleCreateBill = async () => {
-    if (!selectedAppointment) return;
-
-    setActionLoading(true);
-    setMessage('');
-
-    try {
-      const total = calculateTotal();
-      
-      const bill = {
-        consultationFee: billData.consultationFee,
-        testCharges: billData.testCharges,
-        medicineCharges: 0,
-        otherCharges: billData.otherCharges.reduce((sum, charge) => sum + (charge.amount || 0), 0),
-        total,
-        breakdown: [
-          { description: 'Consultation Fee', amount: billData.consultationFee },
-          { description: 'Test Charges', amount: billData.testCharges },
-          ...billData.otherCharges.filter(charge => charge.description && charge.amount)
-        ]
-      };
-
-      const billId = await FirebaseService.createBill(selectedAppointment.id, bill);
-
-      if (billId) {
-        if (selectedAppointment.status !== 'completed') {
-          await FirebaseService.updateAppointmentStatus(selectedAppointment.id, 'completed');
-        }
-        
-        setMessage('Bill created successfully!');
-        setShowBillModal(false);
-        setBillData({
-          consultationFee: 500,
-          testCharges: 0,
-          otherCharges: [],
-          total: 500,
-          breakdown: [
-            { description: 'Consultation Fee', amount: 500 },
-            { description: 'Test Charges', amount: 0 }
-          ]
-        });
-        
-        const appointmentsData = selectedTab === 'today' 
-          ? await FirebaseService.getDoctorAppointments(user!.uid, new Date())
-          : await FirebaseService.getDoctorAppointments(user!.uid).then(data => 
-              data.filter(apt => apt.status === 'completed')
-            );
-        setAppointments(appointmentsData);
-      } else {
-        setMessage('Failed to create bill');
-      }
-    } catch (error) {
-      console.error('Error creating bill:', error);
-      setMessage('An error occurred while creating bill');
-    } finally {
-      setActionLoading(false);
-    }
-  };
-
-  const handleViewPrescription = async (prescriptionId: string) => {
-    try {
-      const prescription = await FirebaseService.getPrescription(prescriptionId);
-      if (prescription?.pdfBase64) {
-        const pdfWindow = window.open();
-        if (pdfWindow) {
-          pdfWindow.document.write(`
-            <iframe width='100%' height='100%' src='data:application/pdf;base64,${prescription.pdfBase64}'></iframe>
-          `);
-        }
-      } else {
-        setMessage('PDF not available for this prescription');
-      }
-    } catch (error) {
-      console.error('Error viewing prescription:', error);
-      setMessage('Error loading prescription');
-    }
-  };
-
-  const handleViewBill = async (billId: string) => {
-    try {
-      const bill = await FirebaseService.getBill(billId);
-      if (bill?.pdfBase64) {
-        const pdfWindow = window.open();
-        if (pdfWindow) {
-          pdfWindow.document.write(`
-            <iframe width='100%' height='100%' src='data:application/pdf;base64,${bill.pdfBase64}'></iframe>
-          `);
-        }
-      } else {
-        setMessage('PDF not available for this bill');
-      }
-    } catch (error) {
-      console.error('Error viewing bill:', error);
-      setMessage('Error loading bill');
-    }
-  };
-
-  const handleDownloadPrescription = async (prescriptionId: string) => {
-    try {
-      const prescription = await FirebaseService.getPrescription(prescriptionId);
-      if (prescription?.pdfBase64) {
-        FirebaseService.downloadPDFFromBase64(
-          prescription.pdfBase64,
-          `prescription_${prescriptionId}.pdf`
-        );
-      } else {
-        setMessage('PDF not available for download');
-      }
-    } catch (error) {
-      console.error('Error downloading prescription:', error);
-      setMessage('Error downloading prescription');
-    }
-  };
-
-  const handleDownloadBill = async (billId: string) => {
-    try {
-      const bill = await FirebaseService.getBill(billId);
-      if (bill?.pdfBase64) {
-        FirebaseService.downloadPDFFromBase64(
-          bill.pdfBase64,
-          `bill_${billId}.pdf`
-        );
-      } else {
-        setMessage('PDF not available for download');
-      }
-    } catch (error) {
-      console.error('Error downloading bill:', error);
-      setMessage('Error downloading bill');
-    }
-  };
-
-  // Premium Bill Modal
-  const PremiumBillModal = () => {
-    const patient = patients.get(selectedAppointment?.patientId);
-    const patientName = patient ? `${patient.firstName} ${patient.lastName}` : 'Unknown Patient';
-    const totalAmount = calculateTotal();
-
-    return (
-      <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-        <div className="bg-white/95 backdrop-blur-xl rounded-2xl shadow-2xl w-full max-w-3xl max-h-[85vh] overflow-hidden border border-white/20">
-          {/* Header */}
-          <div className="bg-gradient-to-r from-green-600 via-emerald-600 to-teal-600 p-6 text-white">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-3">
-                <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center">
-                  <Receipt size={24} className="text-white" />
-                </div>
-                <div>
-                  <h3 className="text-xl font-bold">Generate Medical Bill</h3>
-                  <p className="text-green-100 text-sm">Patient: {patientName}</p>
-                </div>
-              </div>
-              <button
-                onClick={() => {
-                  setShowBillModal(false);
-                  setMessage('');
-                }}
-                className="w-10 h-10 bg-white/20 hover:bg-white/30 rounded-xl flex items-center justify-center transition-all duration-200"
-              >
-                <X size={20} />
-              </button>
-            </div>
-          </div>
-
-          <div className="p-6 overflow-y-auto max-h-[calc(85vh-140px)]">
-            {/* Hospital Header */}
-            <div className="text-center mb-6 p-4 bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl border border-green-200">
-              <h2 className="text-2xl font-bold text-green-700 mb-1">KBN Nursing Home</h2>
-              <div className="text-lg font-semibold text-green-600">Medical Bill</div>
-            </div>
-
-            {/* Bill Info */}
-            <div className="grid grid-cols-2 gap-4 mb-6">
-              <div className="bg-white rounded-xl border border-gray-200 p-4">
-                <div className="space-y-2 text-sm">
-                  <div><span className="font-semibold text-gray-700">Bill ID:</span> <span className="text-gray-900">{selectedAppointment?.id?.substring(0, 8) || 'N/A'}</span></div>
-                  <div><span className="font-semibold text-gray-700">Date:</span> <span className="text-gray-900">{new Date().toLocaleDateString()}</span></div>
-                  <div><span className="font-semibold text-gray-700">Doctor:</span> <span className="text-gray-900">Dr. {doctor?.name || 'Doctor'}</span></div>
-                </div>
-              </div>
-              <div className="bg-white rounded-xl border border-gray-200 p-4">
-                <div className="space-y-2 text-sm">
-                  <div><span className="font-semibold text-gray-700">Time:</span> <span className="text-gray-900">{new Date().toLocaleTimeString()}</span></div>
-                  <div><span className="font-semibold text-gray-700">Specialty:</span> <span className="text-gray-900">{doctor?.specializations?.[0] || 'General'}</span></div>
-                  <div><span className="font-semibold text-gray-700">Patient:</span> <span className="text-gray-900">{patientName}</span></div>
-                </div>
-              </div>
-            </div>
-
-            {/* Bill Details Table */}
-            <div className="bg-white rounded-xl border border-gray-200 overflow-hidden mb-6">
-              <div className="bg-gradient-to-r from-gray-50 to-green-50 px-4 py-3 border-b border-gray-200">
-                <h4 className="font-bold text-gray-800">Bill Details</h4>
-              </div>
-              <table className="w-full">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">No.</th>
-                    <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Description</th>
-                    <th className="px-4 py-3 text-right text-sm font-semibold text-gray-700">Amount (₹)</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-200">
-                  <tr className="hover:bg-gray-50">
-                    <td className="px-4 py-3 text-sm text-gray-900">1</td>
-                    <td className="px-4 py-3 text-sm text-gray-900">Consultation Fee</td>
-                    <td className="px-4 py-3 text-right">
-                      <input
-                        type="number"
-                        min={0}
-                        value={billData.consultationFee}
-                        onChange={e => setBillData(prev => ({ ...prev, consultationFee: Number(e.target.value) }))}
-                        className="w-24 px-3 py-2 border border-gray-200 rounded-lg text-right focus:ring-2 focus:ring-green-500"
-                      />
-                    </td>
-                  </tr>
-                  <tr className="hover:bg-gray-50">
-                    <td className="px-4 py-3 text-sm text-gray-900">2</td>
-                    <td className="px-4 py-3 text-sm text-gray-900">Test Charges</td>
-                    <td className="px-4 py-3 text-right">
-                      <input
-                        type="number"
-                        min={0}
-                        value={billData.testCharges}
-                        onChange={e => setBillData(prev => ({ ...prev, testCharges: Number(e.target.value) }))}
-                        className="w-24 px-3 py-2 border border-gray-200 rounded-lg text-right focus:ring-2 focus:ring-green-500"
-                      />
-                    </td>
-                  </tr>
-                  {billData.otherCharges.map((charge, idx) => (
-                    <tr key={idx} className="hover:bg-gray-50">
-                      <td className="px-4 py-3 text-sm text-gray-900">{idx + 3}</td>
-                      <td className="px-4 py-3">
-                        <input
-                          type="text"
-                          value={charge.description}
-                          onChange={e => updateOtherCharge(idx, 'description', e.target.value)}
-                          className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-green-500"
-                          placeholder="Other charge description"
-                        />
-                      </td>
-                      <td className="px-4 py-3 text-right">
-                        <div className="flex items-center justify-end space-x-2">
-                          <input
-                            type="number"
-                            min={0}
-                            value={charge.amount}
-                            onChange={e => updateOtherCharge(idx, 'amount', Number(e.target.value))}
-                            className="w-24 px-3 py-2 border border-gray-200 rounded-lg text-right focus:ring-2 focus:ring-green-500"
-                          />
-                          <button
-                            onClick={() => removeOtherCharge(idx)}
-                            className="w-8 h-8 bg-red-100 hover:bg-red-200 text-red-600 rounded-lg flex items-center justify-center transition-all duration-200 hover:scale-110"
-                            title="Remove charge"
-                          >
-                            <X size={14} />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-              <div className="p-4 bg-gradient-to-r from-gray-50 to-green-50 border-t border-gray-200">
-                <button
-                  onClick={addOtherCharge}
-                  className="flex items-center space-x-2 text-green-600 hover:text-green-800 font-medium transition-all duration-200 hover:scale-105"
-                >
-                  <Plus size={16} />
-                  <span>Add Other Charge</span>
-                </button>
-              </div>
-            </div>
-
-            {/* Total Amount */}
-            <div className="bg-gradient-to-r from-green-500 to-emerald-500 text-white rounded-xl p-6 text-center mb-4 shadow-lg">
-              <div className="text-2xl font-bold">Total Amount: ₹{totalAmount.toLocaleString()}</div>
-            </div>
-          </div>
-
-          {/* Footer Actions */}
-          <div className="bg-gradient-to-r from-gray-50 to-green-50 px-6 py-4 border-t border-gray-200">
-            <div className="flex justify-end space-x-3">
-              <button
-                onClick={() => {
-                  setShowBillModal(false);
-                  setMessage('');
-                }}
-                disabled={actionLoading}
-                className="px-6 py-3 text-gray-600 hover:text-gray-800 font-medium transition-all duration-200 hover:scale-105"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleCreateBill}
-                disabled={actionLoading}
-                className="px-8 py-3 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-xl font-medium hover:from-green-700 hover:to-emerald-700 disabled:opacity-50 flex items-center space-x-2 transition-all duration-200 hover:scale-105 shadow-lg"
-              >
-                {actionLoading ? (
-                  <Loader className="animate-spin" size={18} />
-                ) : (
-                  <Save size={18} />
-                )}
-                <span>{actionLoading ? 'Generating...' : 'Generate Bill'}</span>
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  };
-
-  const filteredAppointments = appointments.filter(appointment => {
-    const patient = patients.get(appointment.patientId);
-    const patientName = patient ? `${patient.firstName} ${patient.lastName}` : 'Unknown Patient';
-    const matchesSearch = patientName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      appointment.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      appointment.reason?.toLowerCase().includes(searchTerm.toLowerCase());
-    return matchesSearch;
-  });
-
-  const todayCount = appointments.filter(apt => {
-    const today = new Date();
-    const aptDate = new Date(apt.date);
-    return aptDate.toDateString() === today.toDateString();
-  }).length;
-
-  const completedCount = appointments.filter(apt => apt.status === 'completed').length;
-
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 relative">
-      {/* Animated Background */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute -top-40 -right-40 w-80 h-80 bg-gradient-to-br from-blue-400/10 to-purple-600/10 rounded-full blur-3xl animate-pulse"></div>
-        <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-gradient-to-br from-pink-400/10 to-red-600/10 rounded-full blur-3xl animate-pulse"></div>
-      </div>
-
-      <div className="relative z-10 p-6 space-y-6">
-        {/* Header */}
-        <div className="flex justify-between items-center">
-          <div className="space-y-2">
-            <h2 className="text-3xl font-bold bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-600 bg-clip-text text-transparent">
-              Consultation Management
-            </h2>
-            <p className="text-gray-600">Create prescriptions and bills for your patients</p>
-          </div>
-          <div className="flex items-center space-x-3">
-            <div className="flex items-center space-x-2 px-4 py-2 bg-white/80 backdrop-blur-sm rounded-xl border border-white/20 shadow-lg">
-              <Activity className="text-blue-600" size={18} />
-              <span className="text-sm font-medium text-gray-700">Dr. {doctor?.name}</span>
-            </div>
-          </div>
-        </div>
-
-        {message && !showPrescriptionModal && !showBillModal && (
-          <div className={`p-4 rounded-xl border backdrop-blur-sm ${
-            message.includes('successfully') 
-              ? 'bg-green-50/80 text-green-800 border-green-200' 
-              : 'bg-red-50/80 text-red-800 border-red-200'
-          } animate-slide-in-up`}>
-            {message}
-          </div>
-        )}
-
-        {/* Premium Tab Navigation */}
-        <div className="flex space-x-2 p-2 bg-white/60 backdrop-blur-xl rounded-2xl border border-white/20 shadow-lg">
-          <button
-            onClick={() => setSelectedTab('today')}
-            className={`flex-1 px-6 py-3 rounded-xl font-medium transition-all duration-300 flex items-center justify-center space-x-2 ${
-              selectedTab === 'today'
-                ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg transform scale-105'
-                : 'text-gray-600 hover:text-gray-800 hover:bg-white/50'
-            }`}
-          >
-            <Clock size={18} />
-            <span>Today's Appointments</span>
-            <span className={`px-2 py-1 rounded-full text-xs ${
-              selectedTab === 'today' ? 'bg-white/20' : 'bg-blue-100 text-blue-600'
-            }`}>
-              {todayCount}
-            </span>
-          </button>
-          <button
-            onClick={() => setSelectedTab('completed')}
-            className={`flex-1 px-6 py-3 rounded-xl font-medium transition-all duration-300 flex items-center justify-center space-x-2 ${
-              selectedTab === 'completed'
-                ? 'bg-gradient-to-r from-green-600 to-emerald-600 text-white shadow-lg transform scale-105'
-                : 'text-gray-600 hover:text-gray-800 hover:bg-white/50'
-            }`}
-          >
-            <CheckCircle size={18} />
-            <span>Completed Consultations</span>
-            <span className={`px-2 py-1 rounded-full text-xs ${
-              selectedTab === 'completed' ? 'bg-white/20' : 'bg-green-100 text-green-600'
-            }`}>
-              {completedCount}
-            </span>
-          </button>
-        </div>
-
-        {/* Search and Filters */}
-        <div className="bg-white/80 backdrop-blur-xl rounded-2xl border border-white/20 shadow-lg p-6">
-          <div className="flex items-center space-x-4">
-            <div className="relative flex-1">
-              <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
-              <input
-                type="text"
-                placeholder="Search appointments, patients, or reasons..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-12 pr-4 py-3 bg-white/70 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
-              />
-            </div>
-            <div className="flex items-center space-x-2 px-4 py-3 bg-blue-50 rounded-xl border border-blue-200">
-              <FileText className="text-blue-600" size={18} />
-              <span className="text-sm font-medium text-blue-800">
-                {filteredAppointments.length} Results
-              </span>
-            </div>
-          </div>
-        </div>
-
-        {/* Appointments Table */}
-        <div className="bg-white/80 backdrop-blur-xl rounded-2xl border border-white/20 shadow-lg overflow-hidden">
-          {loading ? (
-            <div className="p-12 text-center">
-              <div className="w-16 h-16 bg-gradient-to-r from-blue-600 to-purple-600 rounded-2xl flex items-center justify-center mx-auto mb-4 animate-pulse">
-                <Loader className="animate-spin text-white" size={24} />
-              </div>
-              <p className="text-gray-600 font-medium">Loading appointments...</p>
-            </div>
-          ) : filteredAppointments.length === 0 ? (
-            <div className="p-12 text-center">
-              <div className="w-20 h-20 bg-gradient-to-r from-gray-200 to-gray-300 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                <Calendar size={32} className="text-gray-500" />
-              </div>
-              <p className="text-gray-600 font-medium mb-2">No appointments found</p>
-              <p className="text-gray-500 text-sm">
-                {selectedTab === 'today' ? 'No appointments scheduled for today' : 'No completed consultations yet'}
-              </p>
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className="bg-gradient-to-r from-gray-50 to-blue-50">
-                  <tr>
-                    <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Patient</th>
-                    <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Contact</th>
-                    <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Schedule</th>
-                    <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Type</th>
-                    <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Status</th>
-                    <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100">
-                  {filteredAppointments.map((appointment, index) => {
-                    const patient = patients.get(appointment.patientId);
-                    const patientName = patient ? `${patient.firstName} ${patient.lastName}` : 'Unknown Patient';
-                    
-                    return (
-                      <tr 
-                        key={appointment.id} 
-                        className="hover:bg-blue-50/50 transition-all duration-200 group"
-                        style={{ animationDelay: `${index * 100}ms` }}
-                      >
-                        <td className="px-6 py-4">
-                          <div className="flex items-center space-x-3">
-                            <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform duration-200">
-                              <User size={18} className="text-white" />
-                            </div>
-                            <div>
-                              <div className="font-semibold text-gray-900">{patientName}</div>
-                              <div className="text-sm text-gray-500">ID: {appointment.patientId?.substring(0, 8)}...</div>
-                            </div>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4">
-                          <div className="space-y-1">
-                            <div className="text-sm text-gray-900">{patient?.phoneNumber || 'No phone'}</div>
-                            <div className="text-sm text-gray-500">{patient?.email || 'No email'}</div>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4">
-                          <div className="space-y-1">
-                            <div className="text-sm font-medium text-gray-900">
-                              {new Date(appointment.date).toLocaleDateString()}
-                            </div>
-                            <div className="text-sm text-gray-500">
-                              {appointment.timeSlot || new Date(appointment.date).toLocaleTimeString('en-US', { 
-                                hour: '2-digit', 
-                                minute: '2-digit' 
-                              })}
-                            </div>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4">
-                          <span className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium">
-                            {appointment.type || 'Consultation'}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4">
-                          <span className={`px-3 py-1 rounded-full text-sm font-medium ${
-                            appointment.status === 'completed' 
-                              ? 'bg-green-100 text-green-800'
-                              : appointment.status === 'scheduled'
-                              ? 'bg-yellow-100 text-yellow-800'
-                              : 'bg-gray-100 text-gray-800'
-                          }`}>
-                            {appointment.status || 'scheduled'}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4">
-                          <div className="flex items-center space-x-2">
-                            {appointment.status === 'completed' ? (
-                              <>
-                                {appointment.hasPrescription ? (
-                                  <div className="flex space-x-1">
-                                    <button 
-                                      title="View Prescription"
-                                      onClick={() => handleViewPrescription(appointment.prescriptionId)}
-                                      className="w-9 h-9 bg-blue-100 hover:bg-blue-200 text-blue-600 rounded-lg flex items-center justify-center transition-all duration-200 hover:scale-110"
-                                    >
-                                      <Eye size={16} />
-                                    </button>
-                                    <button 
-                                      title="Download Prescription"
-                                      onClick={() => handleDownloadPrescription(appointment.prescriptionId)}
-                                      className="w-9 h-9 bg-green-100 hover:bg-green-200 text-green-600 rounded-lg flex items-center justify-center transition-all duration-200 hover:scale-110"
-                                    >
-                                      <Download size={16} />
-                                    </button>
-                                  </div>
-                                ) : (
-                                  <button 
-                                    title="Create Prescription"
-                                    onClick={() => {
-                                      setSelectedAppointment(appointment);
-                                      setShowPrescriptionModal(true);
-                                      setMessage('');
-                                    }}
-                                    className="w-9 h-9 bg-green-100 hover:bg-green-200 text-green-600 rounded-lg flex items-center justify-center transition-all duration-200 hover:scale-110"
-                                  >
-                                    <Pill size={16} />
-                                  </button>
-                                )}
-                                
-                                {appointment.hasBill ? (
-                                  <div className="flex space-x-1">
-                                    <button 
-                                      title="View Bill"
-                                      onClick={() => handleViewBill(appointment.billId)}
-                                      className="w-9 h-9 bg-blue-100 hover:bg-blue-200 text-blue-600 rounded-lg flex items-center justify-center transition-all duration-200 hover:scale-110"
-                                    >
-                                      <Eye size={16} />
-                                    </button>
-                                    <button 
-                                      title="Download Bill"
-                                      onClick={() => handleDownloadBill(appointment.billId)}
-                                      className="w-9 h-9 bg-purple-100 hover:bg-purple-200 text-purple-600 rounded-lg flex items-center justify-center transition-all duration-200 hover:scale-110"
-                                    >
-                                      <Download size={16} />
-                                    </button>
-                                  </div>
-                                ) : (
-                                  <button 
-                                    title="Create Bill"
-                                    onClick={() => {
-                                      setSelectedAppointment(appointment);
-                                      setShowBillModal(true);
-                                      setMessage('');
-                                    }}
-                                    className="w-9 h-9 bg-purple-100 hover:bg-purple-200 text-purple-600 rounded-lg flex items-center justify-center transition-all duration-200 hover:scale-110"
-                                  >
-                                    <Receipt size={16} />
-                                  </button>
-                                )}
-                              </>
-                            ) : (
-                              <>
-                                <button 
-                                  title="Create Prescription"
-                                  onClick={() => {
-                                    setSelectedAppointment(appointment);
-                                    setShowPrescriptionModal(true);
-                                    setMessage('');
-                                  }}
-                                  className="w-9 h-9 bg-green-100 hover:bg-green-200 text-green-600 rounded-lg flex items-center justify-center transition-all duration-200 hover:scale-110"
-                                >
-                                  <Pill size={16} />
-                                </button>
-                                
-                                <button 
-                                  title="Create Bill"
-                                  onClick={() => {
-                                    setSelectedAppointment(appointment);
-                                    setShowBillModal(true);
-                                    setMessage('');
-                                  }}
-                                  className="w-9 h-9 bg-purple-100 hover:bg-purple-200 text-purple-600 rounded-lg flex items-center justify-center transition-all duration-200 hover:scale-110"
-                                >
-                                  <Receipt size={16} />
-                                </button>
-                              </>
-                            )}
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
           )}
         </div>
       </div>
 
-      {/* Modals */}
-      {showPrescriptionModal && (
-        <PremiumPrescriptionModal
-          prescriptionData={prescriptionData}
-          updateMedicine={updateMedicine}
-          removeMedicine={removeMedicine}
-          addMedicine={addMedicine}
-          setShowPrescriptionModal={setShowPrescriptionModal}
-          setMessage={setMessage}
-          setPrescriptionData={setPrescriptionData}
-          actionLoading={actionLoading}
-          handleCreatePrescription={handleCreatePrescription}
-          patients={patients}
-          selectedAppointment={selectedAppointment}
-          theme={theme}
-          message={message}
-        />
-      )}
-      {showBillModal && <PremiumBillModal />}
+      {showModal && <ConsultationModal />}
     </div>
   );
 };
