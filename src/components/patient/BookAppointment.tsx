@@ -264,21 +264,21 @@ const BookAppointment: React.FC = () => {
             >
               <div className="flex items-center space-x-3 mb-3">
                 <div className="relative">
-                  <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
-                    <User size={20} className="text-blue-600" />
+                  <div className="w-12 h-12 bg-blue-100 dark:bg-blue-900/20 rounded-full flex items-center justify-center">
+                    <User size={20} className="text-blue-600 dark:text-blue-400" />
                   </div>
                   {doctor.isCheckedIn && (
                     <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-green-500 rounded-full border-2 border-white"></div>
                   )}
                 </div>
                 <div>
-                  <h4 className="font-semibold text-gray-900">Dr. {doctor.name}</h4>
-                  <p className="text-sm text-gray-600">{doctor.specializations?.[0]}</p>
-                  <p className="text-xs text-gray-500">{doctor.phone}</p>
-                  <p className="text-xs text-gray-500">{doctor.clinics?.[0]}</p>
+                  <h4 className="font-semibold text-gray-900 dark:text-white">Dr. {doctor.name}</h4>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">{doctor.specializations?.[0]}</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-500">{doctor.phone}</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-500">{doctor.clinics?.[0]}</p>
                 </div>
               </div>
-              <div className="space-y-2 text-sm text-gray-600">
+              <div className="space-y-2 text-sm text-gray-600 dark:text-gray-400">
                 <div className="flex items-center space-x-2">
                   <Clock size={14} />
                   <span>{doctor.experience || 0} years experience</span>
@@ -299,14 +299,14 @@ const BookAppointment: React.FC = () => {
               <div className="mt-3 flex items-center justify-between">
                 <span className={`px-2 py-1 text-xs rounded-full ${
                   doctor.isCheckedIn
-                    ? 'bg-green-100 text-green-800'
-                    : 'bg-gray-100 text-gray-800'
+                    ? 'badge-success'
+                    : 'badge-info'
                 }`}>
                   {doctor.isCheckedIn ? 'Available' : 'Offline'}
                 </span>
                 <div className="flex space-x-1">
-                  <Video size={16} className="text-blue-600" />
-                  <Phone size={16} className="text-green-600" />
+                  <Video size={16} className="text-blue-600 dark:text-blue-400" />
+                  <Phone size={16} className="text-green-600 dark:text-green-400" />
                 </div>
               </div>
             </div>
@@ -323,7 +323,7 @@ const BookAppointment: React.FC = () => {
         <button
           onClick={() => setStep(2)}
           disabled={!selectedDoctor}
-          className="px-6 py-3 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-xl font-medium hover:from-green-700 hover:to-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 hover:scale-105 shadow-lg"
+          className="btn-success px-6 py-3 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
         >
           Next: Select Date & Time
         </button>

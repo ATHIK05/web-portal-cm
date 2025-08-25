@@ -12,7 +12,8 @@ import {
   MessageSquare,
   Video,
   AlertCircle,
-  Pill
+  Pill,
+  Heart
 } from 'lucide-react';
 
 const PatientSidebar: React.FC = () => {
@@ -26,36 +27,38 @@ const PatientSidebar: React.FC = () => {
     { icon: MessageSquare, label: 'Messages', path: '/patient/messages' },
     { icon: Video, label: 'Waiting Room', path: '/patient/waiting-room' },
     { icon: AlertCircle, label: 'Emergency', path: '/patient/emergency' },
-    { icon: User, label: 'My Profile', path: '/patient/profile' },
     { icon: Settings, label: 'Settings', path: '/patient/settings' },
   ];
 
   return (
-    <aside className="w-64 sidebar-glass shadow-2xl animate-slide-in-right">
-      <div className="p-6 border-b border-white/10">
-        <div className="flex items-center space-x-2">
-          <div className="w-8 h-8 bg-gradient-to-br from-green-500 to-emerald-600 rounded-lg flex items-center justify-center shadow-lg pulse-glow">
-            <User size={20} className="text-white" />
+    <aside className="w-64 sidebar">
+      <div className="p-6 border-b border-gray-200 dark:border-gray-700">
+        <div className="flex items-center space-x-3">
+          <div className="w-10 h-10 bg-green-600 rounded-lg flex items-center justify-center">
+            <Heart size={24} className="text-white" />
           </div>
-          <span className="text-xl font-bold gradient-text">MediCare Patient</span>
+          <div>
+            <h1 className="text-xl font-bold text-gray-900 dark:text-white">MediCare</h1>
+            <p className="text-sm text-gray-600 dark:text-gray-400">Patient Portal</p>
+          </div>
         </div>
       </div>
       
       <nav className="mt-6">
-        <ul className="space-y-1 px-3">
+        <ul className="space-y-2 px-4">
           {navItems.map((item) => (
             <li key={item.path}>
               <NavLink
                 to={item.path}
                 className={({ isActive }) =>
-                  `flex items-center space-x-3 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-300 transform hover:scale-105 ${
+                  `flex items-center space-x-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors ${
                     isActive
-                      ? 'bg-gradient-to-r from-green-500/20 to-emerald-600/20 text-green-700 border-r-4 border-green-500 shadow-lg backdrop-blur-sm'
-                      : 'text-gray-700 hover:bg-white/10 hover:text-gray-900 hover:shadow-md'
+                      ? 'bg-green-50 text-green-700 border-r-4 border-green-600 dark:bg-green-900/20 dark:text-green-400'
+                      : 'text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700'
                   }`
                 }
               >
-                <item.icon size={18} className="transition-transform duration-300 group-hover:scale-110" />
+                <item.icon size={18} />
                 <span>{item.label}</span>
               </NavLink>
             </li>

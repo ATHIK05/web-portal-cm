@@ -98,19 +98,19 @@ const Messages: React.FC = () => {
               {conversations.map(conv => (
                 <li key={conv.doctorId}>
                   <button
-                    className={`w-full text-left px-3 py-3 rounded-lg flex items-center space-x-3 transition-colors ${
+                    className={`w-full text-left px-3 py-3 rounded-lg flex items-center space-x-3 transition-colors focus:outline-none focus:ring-2 focus:ring-green-500 ${
                       selectedConversation?.doctorId === conv.doctorId 
-                        ? 'bg-green-50 text-green-700 border border-green-200' 
-                        : 'hover:bg-gray-50'
+                        ? 'bg-green-50 text-green-700 border border-green-200 dark:bg-green-900/20 dark:text-green-400 dark:border-green-800' 
+                        : 'hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-900 dark:text-white'
                     }`}
                     onClick={() => setSelectedConversation(conv)}
                   >
-                    <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
-                      <User size={18} className="text-blue-600" />
+                    <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900/20 rounded-full flex items-center justify-center">
+                      <User size={18} className="text-blue-600 dark:text-blue-400" />
                     </div>
                     <div>
                       <p className="font-medium text-sm">Dr. {conv.doctorName}</p>
-                      <p className="text-xs text-gray-500">Click to chat</p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">Click to chat</p>
                     </div>
                   </button>
                 </li>
@@ -122,21 +122,21 @@ const Messages: React.FC = () => {
         <main className="flex-1 flex flex-col">
           {selectedConversation ? (
             <>
-              <div className="border-b px-6 py-4 flex items-center space-x-3">
-                <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
-                  <User size={20} className="text-blue-600" />
+              <div className="border-b border-gray-200 dark:border-gray-700 px-6 py-4 flex items-center space-x-3 bg-white dark:bg-gray-800">
+                <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900/20 rounded-full flex items-center justify-center">
+                  <User size={20} className="text-blue-600 dark:text-blue-400" />
                 </div>
                 <div>
-                  <h4 className="font-semibold">Dr. {selectedConversation.doctorName}</h4>
-                  <p className="text-sm text-gray-500">Online</p>
+                  <h4 className="font-semibold text-gray-900 dark:text-white">Dr. {selectedConversation.doctorName}</h4>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">Online</p>
                 </div>
               </div>
               
-              <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-gray-50">
+              <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-gray-50 dark:bg-gray-900">
                 {messages.length === 0 ? (
                   <div className="text-center py-8">
-                    <MessageSquare className="mx-auto h-12 w-12 text-gray-400 mb-4" />
-                    <p className="text-gray-500">No messages yet. Start the conversation!</p>
+                    <MessageSquare className="mx-auto h-12 w-12 text-gray-400 dark:text-gray-500 mb-4" />
+                    <p className="text-gray-500 dark:text-gray-400">No messages yet. Start the conversation!</p>
                   </div>
                 ) : (
                   messages.map((msg, idx) => (
@@ -144,7 +144,7 @@ const Messages: React.FC = () => {
                       <div className={`px-4 py-2 rounded-lg max-w-xs ${
                         msg.from === user?.uid 
                           ? 'bg-green-600 text-white' 
-                          : 'bg-white border border-gray-200'
+                          : 'bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 text-gray-900 dark:text-white'
                       }`}>
                         <p className="text-sm">{msg.content}</p>
                         <p className={`text-xs mt-1 ${
@@ -158,19 +158,19 @@ const Messages: React.FC = () => {
                 )}
               </div>
               
-              <div className="p-4 border-t flex space-x-3">
+              <div className="p-4 border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 flex space-x-3">
                 <input
                   type="text"
                   value={newMessage}
                   onChange={e => setNewMessage(e.target.value)}
                   onKeyPress={handleKeyPress}
-                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+                  className="input-field flex-1"
                   placeholder="Type your message..."
                 />
                 <button
                   onClick={handleSend}
                   disabled={!newMessage.trim()}
-                  className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
+                  className="btn-success flex items-center space-x-2"
                 >
                   <Send size={16} />
                   <span>Send</span>
@@ -178,9 +178,9 @@ const Messages: React.FC = () => {
               </div>
             </>
           ) : (
-            <div className="flex-1 flex items-center justify-center text-gray-400">
+            <div className="flex-1 flex items-center justify-center text-gray-400 dark:text-gray-500 bg-gray-50 dark:bg-gray-900">
               <div className="text-center">
-                <MessageSquare className="mx-auto h-16 w-16 text-gray-300 mb-4" />
+                <MessageSquare className="mx-auto h-16 w-16 text-gray-300 dark:text-gray-600 mb-4" />
                 <p className="text-lg">Select a conversation to start chatting</p>
               </div>
             </div>

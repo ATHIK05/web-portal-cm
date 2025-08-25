@@ -112,6 +112,15 @@ const Appointments: React.FC = () => {
     }
   };
 
+  const handleCreatePrescription = (appointmentId: string) => {
+    // Navigate to consultations with appointment ID
+    window.location.href = `/consultations?appointment=${appointmentId}&action=prescription`;
+  };
+
+  const handleCreateBill = (appointmentId: string) => {
+    // Navigate to consultations with appointment ID
+    window.location.href = `/consultations?appointment=${appointmentId}&action=bill`;
+  };
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'completed':
@@ -447,6 +456,26 @@ const Appointments: React.FC = () => {
                                 className="text-red-600 hover:text-red-900 p-1 rounded disabled:opacity-50"
                               >
                                 <XCircle size={16} />
+                              </button>
+                            </>
+                          )}
+                          
+                          {appointment.status === 'completed' && (
+                            <>
+                              <button
+                                title="Create Prescription"
+                                onClick={() => handleCreatePrescription(appointment.id)}
+                                className="px-3 py-1 bg-green-600 text-white rounded text-sm hover:bg-green-700"
+                              >
+                                Prescription
+                              </button>
+                              
+                              <button
+                                title="Create Bill"
+                                onClick={() => handleCreateBill(appointment.id)}
+                                className="px-3 py-1 bg-purple-600 text-white rounded text-sm hover:bg-purple-700"
+                              >
+                                Bill
                               </button>
                             </>
                           )}

@@ -13,37 +13,37 @@ const PatientHeader: React.FC = () => {
   };
 
   return (
-    <header className="header-glass shadow-xl animate-slide-in-up">
+    <header className="header">
       <div className="flex justify-between items-center px-6 py-4">
         <div>
-          <h1 className="text-2xl font-bold gradient-text">Patient Portal</h1>
-          <p className="text-sm text-gray-600">Manage your health and appointments</p>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Patient Portal</h1>
+          <p className="text-sm text-gray-600 dark:text-gray-400">Manage your health and appointments</p>
         </div>
         
         <div className="flex items-center space-x-4">
-          <button className="p-3 text-gray-400 hover:text-gray-600 transition-all duration-300 hover:bg-white/10 rounded-xl transform hover:scale-110">
+          <button className="p-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg">
             <Bell size={20} />
           </button>
           
-          <button className="p-3 text-gray-400 hover:text-gray-600 transition-all duration-300 hover:bg-white/10 rounded-xl transform hover:scale-110">
+          <button className="p-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg">
             <Settings size={20} />
           </button>
           
-          <div className="flex items-center space-x-3 glass-card px-4 py-2 rounded-xl">
-            <div className="w-10 h-10 bg-gradient-to-br from-green-500 to-emerald-600 rounded-full flex items-center justify-center shadow-lg pulse-glow">
-              <User size={20} className="text-white" />
+          <div className="flex items-center space-x-3 bg-gray-50 dark:bg-gray-700 px-4 py-2 rounded-lg">
+            <div className="w-8 h-8 bg-green-600 rounded-full flex items-center justify-center">
+              <User size={16} className="text-white" />
             </div>
             <div className="text-sm">
-              <p className="font-medium text-gray-900">
+              <p className="font-medium text-gray-900 dark:text-white">
                 {patient?.firstName ? `${patient.firstName} ${patient.lastName}` : 'Patient'}
               </p>
-              <p className="text-gray-600">Patient ID: {patient?.id?.substring(0, 8)}...</p>
+              <p className="text-gray-600 dark:text-gray-400">Patient ID: {patient?.id?.substring(0, 8)}...</p>
             </div>
           </div>
           
           <button 
             onClick={handleLogout}
-            className="p-3 text-gray-400 hover:text-red-600 transition-all duration-300 hover:bg-red-50/10 rounded-xl transform hover:scale-110"
+            className="p-2 text-gray-500 hover:text-red-600 dark:text-gray-400 dark:hover:text-red-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg"
           >
             <LogOut size={20} />
           </button>

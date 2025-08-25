@@ -43,12 +43,11 @@ const Settings: React.FC = () => {
       allowPatientReviews: true
     },
     appearance: {
-      theme: 'light',
+      theme: theme,
       language: 'en',
       timezone: 'Asia/Kolkata'
     }
   });
-  const [language, setLanguage] = useState(settings.appearance.language);
 
   useEffect(() => {
     if (user) {
@@ -56,15 +55,10 @@ const Settings: React.FC = () => {
     }
   }, [user]);
 
-  useEffect(() => {
-    setLanguage(settings.appearance.language);
-  }, [settings.appearance.language]);
-
   const loadSettings = async () => {
     if (!user) return;
     
     try {
-      // Load settings from Firebase or use defaults
       const doctorProfile = await FirebaseService.getDoctorProfile(user.uid);
       if (doctorProfile?.settings) {
         setSettings(prev => ({ ...prev, ...doctorProfile.settings }));
@@ -110,10 +104,10 @@ const Settings: React.FC = () => {
   };
 
   const SettingSection = ({ title, icon: Icon, children }: any) => (
-    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+    <div className="card p-6">
       <div className="flex items-center space-x-3 mb-4">
-        <Icon className="text-blue-600" size={20} />
-        <h3 className="text-lg font-semibold text-gray-900">{title}</h3>
+        <Icon className="text-blue-600 dark:text-blue-400" size={20} />
+        <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{title}</h3>
       </div>
       <div className="space-y-4">
         {children}
@@ -124,13 +118,13 @@ const Settings: React.FC = () => {
   const ToggleSwitch = ({ enabled, onChange, label, description }: any) => (
     <div className="flex items-center justify-between">
       <div>
-        <p className="font-medium text-gray-900">{label}</p>
-        {description && <p className="text-sm text-gray-600">{description}</p>}
+        <p className="font-medium text-gray-900 dark:text-white">{label}</p>
+        {description && <p className="text-sm text-gray-600 dark:text-gray-400">{description}</p>}
       </div>
       <button
         onClick={() => onChange(!enabled)}
-        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-          enabled ? 'bg-blue-600' : 'bg-gray-200'
+        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 ${
+          enabled ? 'bg-blue-600' : 'bg-gray-200 dark:bg-gray-700'
         }`}
       >
         <span
@@ -146,13 +140,13 @@ const Settings: React.FC = () => {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h2 className="text-3xl font-bold text-gray-900">Settings</h2>
-          <p className="text-gray-600 mt-1">Manage your account preferences and configurations</p>
+          <h2 className="text-3xl font-bold text-gray-900 dark:text-white">Settings</h2>
+          <p className="text-gray-600 dark:text-gray-400 mt-1">Manage your account preferences and configurations</p>
         </div>
         <button
           onClick={handleSaveSettings}
           disabled={loading}
-          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center space-x-2"
+          className="btn-primary flex items-center space-x-2"
         >
           {loading && <Loader className="animate-spin" size={16} />}
           <Save size={16} />
@@ -162,8 +156,8 @@ const Settings: React.FC = () => {
 
       {message && (
         <div className={`p-4 rounded-lg ${
-          message.includes('successfully') ? 'bg-green-50 text-green-800 border border-green-200' : 
-          'bg-red-50 text-red-800 border border-red-200'
+          message.includes('successfully') ? 'bg-green-50 text-green-800 border border-green-200 dark:bg-green-900/20 dark:text-green-400 dark:border-green-800' : 
+          'bg-red-50 text-red-800 border border-red-200 dark:bg-red-900/20 dark:text-red-400 dark:border-red-800'
         }`}>
           {message}
         </div>
@@ -206,15 +200,13 @@ const Settings: React.FC = () => {
           />
           
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
               Consultation Duration (minutes)
             </label>
             <select
               value={settings.consultation.consultationDuration}
               onChange={(e) => updateSetting('consultation', 'consultationDuration', parseInt(e.target.value))}
-              className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                theme === 'dark' ? 'bg-gray-800 text-white' : ''
-              }`}
+              className="input-field"
             >
               <option value={15}>15 minutes</option>
               <option value={30}>30 minutes</option>
@@ -224,15 +216,13 @@ const Settings: React.FC = () => {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
               Buffer Time (minutes)
             </label>
             <select
               value={settings.consultation.bufferTime}
               onChange={(e) => updateSetting('consultation', 'bufferTime', parseInt(e.target.value))}
-              className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                theme === 'dark' ? 'bg-gray-800 text-white' : ''
-              }`}
+              className="input-field"
             >
               <option value={5}>5 minutes</option>
               <option value={10}>10 minutes</option>
@@ -251,15 +241,13 @@ const Settings: React.FC = () => {
 
         <SettingSection title="Privacy & Security" icon={Shield}>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
               Profile Visibility
             </label>
             <select
               value={settings.privacy.profileVisibility}
               onChange={(e) => updateSetting('privacy', 'profileVisibility', e.target.value)}
-              className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                theme === 'dark' ? 'bg-gray-800 text-white' : ''
-              }`}
+              className="input-field"
             >
               <option value="public">Public</option>
               <option value="limited">Limited</option>
@@ -284,16 +272,16 @@ const Settings: React.FC = () => {
 
         <SettingSection title="Appearance & Language" icon={Globe}>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
               Theme
             </label>
             <div className="flex space-x-3">
               <button
                 onClick={() => setTheme('light')}
-                className={`flex items-center space-x-2 px-4 py-2 rounded-lg border ${
+                className={`flex items-center space-x-2 px-4 py-2 rounded-lg border transition-colors ${
                   theme === 'light' 
-                    ? 'border-blue-500 bg-blue-50 text-blue-700' 
-                    : 'border-gray-300 text-gray-700'
+                    ? 'border-blue-500 bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400' 
+                    : 'border-gray-300 text-gray-700 dark:border-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'
                 }`}
               >
                 <Sun size={16} />
@@ -301,10 +289,10 @@ const Settings: React.FC = () => {
               </button>
               <button
                 onClick={() => setTheme('dark')}
-                className={`flex items-center space-x-2 px-4 py-2 rounded-lg border ${
+                className={`flex items-center space-x-2 px-4 py-2 rounded-lg border transition-colors ${
                   theme === 'dark' 
-                    ? 'border-blue-500 bg-blue-50 text-blue-700' 
-                    : 'border-gray-300 text-gray-700'
+                    ? 'border-blue-500 bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400' 
+                    : 'border-gray-300 text-gray-700 dark:border-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'
                 }`}
               >
                 <Moon size={16} />
@@ -314,18 +302,13 @@ const Settings: React.FC = () => {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
               Language
             </label>
             <select
-              value={language}
-              onChange={(e) => {
-                setLanguage(e.target.value);
-                updateSetting('appearance', 'language', e.target.value);
-              }}
-              className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                theme === 'dark' ? 'bg-gray-800 text-white' : ''
-              }`}
+              value={settings.appearance.language}
+              onChange={(e) => updateSetting('appearance', 'language', e.target.value)}
+              className="input-field"
             >
               <option value="en">English</option>
               <option value="hi">Hindi</option>
@@ -335,15 +318,13 @@ const Settings: React.FC = () => {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
               Timezone
             </label>
             <select
               value={settings.appearance.timezone}
               onChange={(e) => updateSetting('appearance', 'timezone', e.target.value)}
-              className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                theme === 'dark' ? 'bg-gray-800 text-white' : ''
-              }`}
+              className="input-field"
             >
               <option value="Asia/Kolkata">India Standard Time (IST)</option>
               <option value="Asia/Dubai">Gulf Standard Time (GST)</option>
@@ -354,35 +335,35 @@ const Settings: React.FC = () => {
         </SettingSection>
       </div>
 
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Account Information</h3>
+      <div className="card p-6">
+        <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Account Information</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="flex items-center space-x-3">
-            <User className="text-gray-400" size={20} />
+            <User className="text-gray-400 dark:text-gray-500" size={20} />
             <div>
-              <p className="text-sm text-gray-600">Name</p>
-              <p className="font-medium text-gray-900">{doctor?.name || 'Not set'}</p>
+              <p className="text-sm text-gray-600 dark:text-gray-400">Name</p>
+              <p className="font-medium text-gray-900 dark:text-white">{doctor?.name || 'Not set'}</p>
             </div>
           </div>
           <div className="flex items-center space-x-3">
-            <Mail className="text-gray-400" size={20} />
+            <Mail className="text-gray-400 dark:text-gray-500" size={20} />
             <div>
-              <p className="text-sm text-gray-600">Email</p>
-              <p className="font-medium text-gray-900">{doctor?.email || 'Not set'}</p>
+              <p className="text-sm text-gray-600 dark:text-gray-400">Email</p>
+              <p className="font-medium text-gray-900 dark:text-white">{doctor?.email || 'Not set'}</p>
             </div>
           </div>
           <div className="flex items-center space-x-3">
-            <Phone className="text-gray-400" size={20} />
+            <Phone className="text-gray-400 dark:text-gray-500" size={20} />
             <div>
-              <p className="text-sm text-gray-600">Phone</p>
-              <p className="font-medium text-gray-900">{doctor?.phone || 'Not set'}</p>
+              <p className="text-sm text-gray-600 dark:text-gray-400">Phone</p>
+              <p className="font-medium text-gray-900 dark:text-white">{doctor?.phone || 'Not set'}</p>
             </div>
           </div>
           <div className="flex items-center space-x-3">
-            <Clock className="text-gray-400" size={20} />
+            <Clock className="text-gray-400 dark:text-gray-500" size={20} />
             <div>
-              <p className="text-sm text-gray-600">Member Since</p>
-              <p className="font-medium text-gray-900">
+              <p className="text-sm text-gray-600 dark:text-gray-400">Member Since</p>
+              <p className="font-medium text-gray-900 dark:text-white">
                 {doctor?.createdAt ? new Date(doctor.createdAt).toLocaleDateString() : 'Unknown'}
               </p>
             </div>

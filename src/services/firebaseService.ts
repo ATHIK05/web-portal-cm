@@ -274,10 +274,18 @@ export class FirebaseService {
   // Prescription Services
   static async createPrescription(appointmentId: string, medicines: any[], instructions: string, nextAppointment?: string): Promise<string | null> {
     try {
+      // Get appointment details for patient info
+      const appointmentDoc = await getDoc(doc(db, 'appointments', appointmentId));
+      if (!appointmentDoc.exists()) {
+        throw new Error('Appointment not found');
+      }
+      const appointment = appointmentDoc.data();
+      
       // Generate PDF first
       const pdfBase64 = await this.generatePrescriptionPDF({
         id: 'temp',
         appointmentId,
+        patientName: appointment.patientName || 'Unknown Patient',
         medicines,
         instructions,
         nextAppointment,
@@ -286,6 +294,9 @@ export class FirebaseService {
 
       const prescriptionData = {
         appointmentId,
+        patientId: appointment.patientId,
+        doctorId: appointment.doctorId,
+        patientName: appointment.patientName,
         medicines,
         instructions,
         nextAppointment,
@@ -340,12 +351,16 @@ export class FirebaseService {
       const pdfBase64 = await this.generateBillPDF({
         id: appointmentId,
         ...billData,
+        patientName: appointment.patientName,
         createdAt: new Date()
       } as any, doctorName);
 
       const bill = {
         ...billData,
         appointmentId,
+        patientId: appointment.patientId,
+        doctorId: appointment.doctorId,
+        patientName: appointment.patientName,
         pdfBase64,
         createdAt: Timestamp.now(),
         lastUpdated: Timestamp.now()
